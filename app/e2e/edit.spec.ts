@@ -16,6 +16,8 @@ test("a corrected note is saved into the song package and resets phrase progress
     await page.keyboard.press("ArrowUp");
     await page.getByRole("button", { name: "Save notes" }).click();
     await expect.poll(async () => (await (await request.get(NOTES_URL)).json())[0].midi).toBe(original[0].midi + 1);
+    // The editor reports "Saved" only once the phrase progress has been reset as well.
+    await expect(page.getByText("Saved", { exact: true })).toBeVisible();
 
     // The automatic notes are left untouched, and the song's progress starts again.
     expect((await (await request.get("/song-files/test-drone/notes.auto.json")).json())[0].midi).toBe(original[0].midi);
