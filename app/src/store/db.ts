@@ -149,6 +149,30 @@ export async function takeIdsWithAudio(takeIds: number[]): Promise<number[]> {
   return db.takeAudio.where("takeId").anyOf(takeIds).primaryKeys();
 }
 
+const AUDIO_KEPT_DAYS = 14;
+
+/**
+ * Drops the audio of older takes to keep storage small. Kept for good: time
+ * capsules, and each day's best take of each song. Everything from the last
+ * fourteen days is kept too. Scores are never dropped. Returns how many
+ * recordings were removed.
+ */
+export async function pruneTakeAudio(now: Date = new Date()): Promise<number> {
+  const cutoff = new Date(now.getTime() - AUDIO_KEPT_DAYS * 24 * 3600 * 1000).toISOString();
+  const takes = await db.takes.toArray();
+  const best = new Map<string, TakeRow>();
+  for (const take of takes) {
+    const day = `${take.songId} ${new Date(take.at).toDateString()}`;
+    const current = best.get(day);
+    if (!current || (take.pctInTune ?? -1) > (current.pctInTune ?? -1)) best.set(day, take);
+  }
+  const keep = new Set([...best.values()].map((take) => take.id));
+  const drop = takes.filter((take) => take.at < cutoff && take.kind !== "capsule" && !keep.has(take.id));
+  const withAudio = await takeIdsWithAudio(drop.map((take) => take.id));
+  await db.takeAudio.bulkDelete(withAudio);
+  return withAudio.length;
+}
+
 export async function addSession(session: Omit<SessionRow, "id">): Promise<void> {
   await db.sessions.add(session);
 }

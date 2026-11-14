@@ -12,16 +12,7 @@ import { Transport } from "../playback/transport";
 import { TAKE_TARGETS, describeTake, heardEnough, type TakeMetrics } from "../scoring/take";
 import { lineAt, songLines } from "../song/lines";
 import type { SongPackage } from "../song/types";
-import {
-  addTake,
-  getSetting,
-  setSetting,
-  takeAudio,
-  takeIdsWithAudio,
-  takesFor,
-  type SongSettings,
-  type TakeRow,
-} from "../store/db";
+import { addTake, getSetting, pruneTakeAudio, setSetting, type SongSettings, takeAudio, takeIdsWithAudio, type TakeRow, takesFor } from "../store/db";
 import { AudioGate } from "./AudioGate";
 import { fakeMic } from "./engine";
 import { loadJson } from "./lab/persist";
@@ -234,6 +225,8 @@ export function TakeSession({ engine, pkg, transport, profile, settings, savedRo
     } catch {
       // Most likely the browser's storage is full. The result is still shown, with a warning.
     }
+    // Older recordings make room; scores are always kept.
+    void pruneTakeAudio();
     const stored = await loadTakes(songId);
     if (!alive()) return;
     setTakes(stored);

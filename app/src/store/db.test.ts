@@ -16,6 +16,7 @@ import {
   loadSkill,
   loadSongSettings,
   pitchChecks,
+  pruneTakeAudio,
   rangeChecks,
   resetPhraseProgress,
   savePhraseProgress,
@@ -135,5 +136,27 @@ describe("store", () => {
     expect((exported.takes as unknown[]).length).toBe(1);
     expect((exported.profile as unknown[]).length).toBe(1);
     expect(() => JSON.stringify(exported)).not.toThrow();
+  });
+
+  it("drops old take audio except time capsules and each day's best take", async () => {
+    const now = new Date("2026-11-30T12:00:00.000Z");
+    const key = { trackShift: 0, octaveDrop: 0 as const };
+    const audio = { sampleRate: 16000, pcm: new ArrayBuffer(4) };
+    const take = (at: string, pctInTune: number, kind: "run" | "capsule" = "run") =>
+      addTake({ songId: "song", at, kind, pctInTune, meanAbsCents: 30, scoredNotes: 40, totalNotes: 44, key }, audio);
+    const oldWorse = await take("2026-11-01T10:00:00.000Z", 60);
+    const oldBest = await take("2026-11-01T11:00:00.000Z", 80);
+    const oldCapsule = await take("2026-11-02T10:00:00.000Z", 40, "capsule");
+    const oldLoser = await take("2026-11-02T11:00:00.000Z", 30);
+    const oldWinner = await take("2026-11-02T12:00:00.000Z", 70);
+    const recent = await take("2026-11-25T10:00:00.000Z", 50);
+    const recentBetter = await take("2026-11-25T11:00:00.000Z", 90);
+
+    expect(await pruneTakeAudio(now)).toBe(2);
+    expect(await takeAudio(oldWorse)).toBeNull();
+    expect(await takeAudio(oldLoser)).toBeNull();
+    for (const kept of [oldBest, oldCapsule, oldWinner, recent, recentBetter]) expect(await takeAudio(kept)).not.toBeNull();
+    // The scores of every take are still there.
+    expect((await takesFor("song")).length).toBe(7);
   });
 });
