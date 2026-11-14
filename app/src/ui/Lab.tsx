@@ -2,6 +2,10 @@ import { useRef, useState } from "react";
 import { AudioEngine, type EngineInfo } from "../audio/engine";
 import { describePitch } from "../dsp/music";
 import { PitchCanvas } from "./PitchCanvas";
+import { CalibrationPanel } from "./lab/CalibrationPanel";
+import { ChecksPanel } from "./lab/ChecksPanel";
+import { ClipPanel } from "./lab/ClipPanel";
+import { LeakagePanel } from "./lab/LeakagePanel";
 import { StatusPanel } from "./lab/StatusPanel";
 import { buttonClass } from "./lab/styles";
 
@@ -42,8 +46,11 @@ export function Lab() {
         if (!readout) return;
         const pitch = frame.hz === null ? null : describePitch(frame.hz);
         readout.dataset.voiced = String(pitch !== null);
-        letterRef.current!.textContent = pitch ? pitch.name.slice(0, -1) : "–";
-        octaveRef.current!.textContent = pitch ? pitch.name.slice(-1) : "";
+        // Between notes the last note stays on screen, dimmed, so the display does not jump.
+        if (pitch) {
+          letterRef.current!.textContent = pitch.name.slice(0, -1);
+          octaveRef.current!.textContent = pitch.name.slice(-1);
+        }
         hzRef.current!.textContent = pitch ? `${frame.hz!.toFixed(1)} Hz` : "";
         centsRef.current!.textContent = pitch ? `${pitch.cents < 0 ? "−" : "+"}${Math.abs(pitch.cents)} cents` : "";
         clarityRef.current!.textContent = `clarity ${frame.clarity.toFixed(2)}`;
@@ -93,7 +100,7 @@ export function Lab() {
                 data-testid="pitch-name"
                 className="text-[9rem] font-medium leading-[0.85] tracking-tight [font-stretch:75%]"
               >
-                <span ref={letterRef}>–</span>
+                <span ref={letterRef}>&nbsp;</span>
                 <span ref={octaveRef} className="relative top-[0.1em] ml-1 text-[0.36em] tracking-normal text-mist" />
               </p>
               <p className="grid grid-cols-[5.5rem_5.5rem_6.5rem_4.5rem] pb-2 text-right text-sm tabular-nums text-mist">
@@ -106,6 +113,10 @@ export function Lab() {
             <PitchCanvas engine={engine} />
           </section>
           <StatusPanel info={info} />
+          <CalibrationPanel engine={engine} info={info} />
+          <ClipPanel engine={engine} />
+          <LeakagePanel engine={engine} />
+          <ChecksPanel />
         </div>
       )}
     </main>
