@@ -8,6 +8,7 @@ import { ChecksPanel } from "./lab/ChecksPanel";
 import { ClipPanel } from "./lab/ClipPanel";
 import { LeakagePanel } from "./lab/LeakagePanel";
 import { StatusPanel } from "./lab/StatusPanel";
+import { StretchPanel } from "./lab/StretchPanel";
 
 /** The current note, large, with the raw numbers beside it and the pitch line beneath. */
 function LiveReadout({ engine }: { engine: AudioEngine }) {
@@ -77,6 +78,7 @@ export function Lab() {
           <CalibrationPanel engine={engine} info={info} />
           <ClipPanel engine={engine} />
           <LeakagePanel engine={engine} />
+          <StretchPanel />
           <ChecksPanel />
         </div>
       )}
