@@ -6,7 +6,7 @@ import { daysPracticed } from "../practice/history";
 import { MODE_NAMES, type Skill } from "../practice/ladder";
 import { attemptsSince, getSetting, loadProfile, loadSkill, sessionsSince, setSetting } from "../store/db";
 import { useEngine } from "./engine";
-import { buttonClass, headlineClass, quietButtonClass } from "./lab/styles";
+import { buttonClass, choiceClass, headlineClass, quietButtonClass } from "./lab/styles";
 
 type Summary = { profile: RangeProfile | null; skill: Skill; days: number; minutes: number };
 
@@ -74,7 +74,7 @@ export function Today() {
               key={value}
               onClick={() => chooseLength(value)}
               aria-pressed={minutes === value}
-              className={minutes === value ? "font-medium text-chalk" : quietButtonClass}
+              className={choiceClass(minutes === value)}
             >
               {value} minutes
             </button>

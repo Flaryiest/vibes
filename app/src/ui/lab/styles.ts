@@ -18,3 +18,9 @@ export const cellClass = "whitespace-nowrap py-1 pr-6 align-top";
 /** A cell whose text may wrap, for long labels. */
 export const wrapCellClass = "py-1 pr-6 align-top";
 export const noteClass = "max-w-prose text-sm text-mist";
+
+/** One of a few options side by side: the chosen one is chalk and underlined, the others are quiet. */
+export const choiceClass = (selected: boolean): string =>
+  selected
+    ? "text-sm font-medium text-chalk underline underline-offset-4"
+    : "text-sm text-mist transition-colors hover:text-chalk";

@@ -19,7 +19,7 @@ import { getSetting, savePhraseProgress, setSetting, type SongSettings } from ".
 import { AudioGate } from "./AudioGate";
 import { fakeMic } from "./engine";
 import { loadJson } from "./lab/persist";
-import { buttonClass, headlineClass, quietButtonClass } from "./lab/styles";
+import { buttonClass, choiceClass, headlineClass, quietButtonClass } from "./lab/styles";
 import { MasteryMap } from "./MasteryMap";
 import { PracticeCanvas } from "./PracticeCanvas";
 import { useSong } from "./useSong";
@@ -268,7 +268,7 @@ export function PhraseSession(props: SessionProps) {
                 key={option}
                 onClick={() => chooseRoute(option)}
                 aria-pressed={route === option}
-                className={route === option ? "font-medium text-chalk" : quietButtonClass}
+                className={choiceClass(route === option)}
               >
                 {option === "headphones" ? "Headphones" : "Speakers"}
               </button>

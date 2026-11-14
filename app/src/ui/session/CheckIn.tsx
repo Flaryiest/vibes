@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { Throat } from "../../store/db";
-import { buttonClass, headlineClass, quietButtonClass } from "../lab/styles";
+import { buttonClass, choiceClass, headlineClass } from "../lab/styles";
 
 const THROATS: { value: Throat; label: string }[] = [
   { value: "fine", label: "Fine" },
@@ -8,7 +8,6 @@ const THROATS: { value: Throat; label: string }[] = [
   { value: "hoarse", label: "Hoarse" },
 ];
 
-const choiceClass = (selected: boolean) => (selected ? "font-medium text-chalk underline underline-offset-4" : quietButtonClass);
 
 /** Two taps after a session. The app cannot hear strain, so it asks. */
 export function CheckIn({ onSave }: { onSave: (effort: number | null, throat: Throat | null) => void }) {
