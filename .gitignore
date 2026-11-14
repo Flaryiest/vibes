@@ -1,0 +1,8 @@
+node_modules/
+dist/
+songs/
+data/
+.DS_Store
+app/e2e/fixtures/
+app/test-results/
+app/playwright-report/
