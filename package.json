@@ -2,8 +2,13 @@
   "name": "vibes",
   "private": true,
   "scripts": {
-    "dev": "pnpm --filter app dev",
-    "test": "pnpm --filter app test",
-    "e2e": "pnpm --filter app e2e"
+    "dev": "PORT=4748 node server/index.mjs & pnpm --filter app dev",
+    "build": "pnpm --filter app build",
+    "start": "pnpm --filter app build && node server/index.mjs",
+    "serve": "node server/index.mjs",
+    "test": "pnpm --filter app test && pnpm --filter server test",
+    "e2e": "pnpm --filter app e2e",
+    "install-agent": "node server/install-agent.mjs",
+    "uninstall-agent": "node server/uninstall-agent.mjs"
   }
 }

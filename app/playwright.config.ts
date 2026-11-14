@@ -21,7 +21,8 @@ export default defineConfig({
     },
   },
   webServer: {
-    command: "pnpm build && pnpm preview",
+    // The real local server, so tests cover songs, saved notes and backups too.
+    command: "pnpm build && node ../server/index.mjs",
     url: "http://localhost:4747",
     reuseExistingServer: true,
     timeout: 120_000,
