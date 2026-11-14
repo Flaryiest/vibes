@@ -1,7 +1,33 @@
 import "fake-indexeddb/auto";
 import { beforeEach, describe, expect, it } from "vitest";
 import { initialSkill } from "../practice/ladder";
-import { addAttempt, attemptsSince, db, loadProfile, loadSkill, saveProfile, saveSkill, type AttemptRow } from "./db";
+import { newProgress } from "../practice/phraseLadder";
+import {
+  addAttempt,
+  addPitchCheck,
+  addSession,
+  addTake,
+  attemptsSince,
+  db,
+  exportAll,
+  getSetting,
+  loadPhraseProgress,
+  loadProfile,
+  loadSkill,
+  loadSongSettings,
+  pitchChecks,
+  rangeChecks,
+  resetPhraseProgress,
+  savePhraseProgress,
+  saveProfile,
+  saveSkill,
+  saveSongSettings,
+  sessionsSince,
+  setSetting,
+  takeAudio,
+  takesFor,
+  type AttemptRow,
+} from "./db";
 
 const attempt = (at: string): Omit<AttemptRow, "id"> => ({
   at,
@@ -14,7 +40,7 @@ const attempt = (at: string): Omit<AttemptRow, "id"> => ({
 });
 
 beforeEach(async () => {
-  await Promise.all([db.profile.clear(), db.skill.clear(), db.attempts.clear()]);
+  await Promise.all(db.tables.map((table) => table.clear()));
 });
 
 describe("store", () => {
@@ -22,10 +48,11 @@ describe("store", () => {
     expect(await loadProfile()).toBeNull();
   });
 
-  it("round-trips the profile, keeping only the latest", async () => {
+  it("round-trips the profile, keeping only the latest, and a dated history", async () => {
     await saveProfile({ speakingMidi: 45, comfortLow: 40, comfortHigh: 57 });
     await saveProfile({ speakingMidi: 46, comfortLow: 41, comfortHigh: 58 });
     expect(await loadProfile()).toEqual({ speakingMidi: 46, comfortLow: 41, comfortHigh: 58 });
+    expect((await rangeChecks()).map((r) => r.comfortHigh)).toEqual([57, 58]);
   });
 
   it("starts with the initial skill and remembers changes", async () => {
@@ -40,5 +67,60 @@ describe("store", () => {
     const found = await attemptsSince("2026-11-11T00:00:00.000Z");
     expect(found.map((a) => a.at)).toEqual(["2026-11-12T10:00:00.000Z"]);
     expect(found[0].results[0].outcome).toBe("hit");
+  });
+
+  it("keeps each song's key and each phrase's progress", async () => {
+    expect(await loadSongSettings("song")).toBeNull();
+    await saveSongSettings({ songId: "song", trackShift: 3, octaveDrop: 1, backingGain: 0.5 });
+    expect(await loadSongSettings("song")).toMatchObject({ trackShift: 3, octaveDrop: 1 });
+
+    await savePhraseProgress({ ...newProgress("song", 0), step: 4 });
+    await savePhraseProgress({ ...newProgress("song", 2), step: 2 });
+    await savePhraseProgress({ ...newProgress("other", 0), step: 7 });
+    await savePhraseProgress({ ...newProgress("song", 0), step: 5 });
+    const progress = await loadPhraseProgress("song");
+    expect(progress.map((p) => [p.group, p.step]).sort()).toEqual([
+      [0, 5],
+      [2, 2],
+    ]);
+    await resetPhraseProgress("song");
+    expect(await loadPhraseProgress("song")).toEqual([]);
+    expect((await loadPhraseProgress("other")).length).toBe(1);
+  });
+
+  it("stores takes with optional audio, oldest first", async () => {
+    const key = { trackShift: 0, octaveDrop: 0 as const };
+    const base = { songId: "song", kind: "run" as const, pctInTune: 80, meanAbsCents: 30, scoredNotes: 40, totalNotes: 44, key };
+    const later = await addTake({ ...base, at: "2026-11-12T10:00:00.000Z" });
+    const earlier = await addTake(
+      { ...base, at: "2026-11-10T10:00:00.000Z", kind: "capsule" },
+      { sampleRate: 16000, pcm: new Int16Array([1, 2, 3]).buffer },
+    );
+    expect((await takesFor("song")).map((t) => t.id)).toEqual([earlier, later]);
+    expect(new Int16Array((await takeAudio(earlier))!.pcm)).toEqual(new Int16Array([1, 2, 3]));
+    expect(await takeAudio(later)).toBeNull();
+  });
+
+  it("stores sessions, pitch checks and settings", async () => {
+    await addSession({ at: "2026-11-12T10:00:00.000Z", minutes: 30, effort: 3, throat: "fine" });
+    expect((await sessionsSince("2026-11-01T00:00:00.000Z"))[0]).toMatchObject({ minutes: 30, throat: "fine" });
+    await addPitchCheck({ at: "2026-11-12T10:00:00.000Z", pctInTune: 62, meanAbsCents: 48, notes: 34 });
+    expect((await pitchChecks())[0].pctInTune).toBe(62);
+    expect(await getSetting("route", "speakers")).toBe("speakers");
+    await setSetting("route", "headphones");
+    expect(await getSetting("route", "speakers")).toBe("headphones");
+  });
+
+  it("exports everything except audio", async () => {
+    await saveProfile({ speakingMidi: 45, comfortLow: 40, comfortHigh: 57 });
+    await addTake(
+      { songId: "s", at: "2026-11-10T10:00:00.000Z", kind: "run", pctInTune: 1, meanAbsCents: 1, scoredNotes: 1, totalNotes: 1, key: { trackShift: 0, octaveDrop: 0 } },
+      { sampleRate: 16000, pcm: new ArrayBuffer(8) },
+    );
+    const exported = await exportAll();
+    expect(Object.keys(exported)).not.toContain("takeAudio");
+    expect((exported.takes as unknown[]).length).toBe(1);
+    expect((exported.profile as unknown[]).length).toBe(1);
+    expect(() => JSON.stringify(exported)).not.toThrow();
   });
 });
