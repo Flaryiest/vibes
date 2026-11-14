@@ -1,4 +1,5 @@
 import { isChromium } from "./browser";
+import { Lab } from "./Lab";
 
 type BrandedNavigator = Navigator & { userAgentData?: { brands: { brand: string }[] } };
 
@@ -6,14 +7,11 @@ export function App() {
   const nav = navigator as BrandedNavigator;
   if (!isChromium(nav.userAgentData?.brands, nav.userAgent)) {
     return (
-      <main className="min-h-screen bg-slate-950 p-8 text-lg text-slate-100">
-        This app needs Google Chrome. Safari and Firefox have audio bugs that break pitch scoring.
+      <main className="mx-auto min-h-screen max-w-4xl px-6 pt-[30vh] sm:px-10">
+        <p className="max-w-lg text-3xl leading-tight [font-stretch:87%]">Open this in Google Chrome.</p>
+        <p className="mt-3 max-w-lg text-mist">Safari and Firefox have audio bugs that break pitch scoring.</p>
       </main>
     );
   }
-  return (
-    <main className="min-h-screen bg-slate-950 p-6 text-slate-100">
-      <h1 className="text-2xl font-semibold">Audio lab</h1>
-    </main>
-  );
+  return <Lab />;
 }
