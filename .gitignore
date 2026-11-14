@@ -7,3 +7,6 @@ app/e2e/fixtures/
 app/test-results/
 app/playwright-report/
 .claude/
+__pycache__/
+.venv/
+.pytest_cache/

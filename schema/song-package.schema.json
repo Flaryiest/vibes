@@ -1,0 +1,192 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "song-package.schema.json",
+  "title": "Song package",
+  "description": "What `songprep import` writes to `songs/<id>/` and the app reads. Mirrors `app/src/song/types.ts`. The root describes the `SongPackage` object the app assembles; each file of a package validates against one definition: manifest.json -> #/$defs/manifest, notes.json and notes.auto.json -> #/$defs/notes, lyrics.json -> #/$defs/lyrics, beats.json -> #/$defs/beats, f0.json -> #/$defs/f0, peaks.json -> #/$defs/peaks, songs/index.json -> #/$defs/songIndex. All times are seconds in the original recording; all pitches are as sung in the original, before any key change.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["manifest", "notes", "lyrics", "beats", "f0"],
+  "properties": {
+    "manifest": { "$ref": "#/$defs/manifest" },
+    "notes": { "$ref": "#/$defs/notes" },
+    "lyrics": { "$ref": "#/$defs/lyrics" },
+    "beats": { "$ref": "#/$defs/beats" },
+    "f0": { "$ref": "#/$defs/f0" }
+  },
+  "$defs": {
+    "seconds": { "type": "number", "minimum": 0 },
+    "midiRange": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lowMidi", "highMidi"],
+      "properties": {
+        "lowMidi": { "type": "integer", "minimum": 0, "maximum": 127 },
+        "highMidi": { "type": "integer", "minimum": 0, "maximum": 127 }
+      }
+    },
+    "manifest": {
+      "title": "Manifest",
+      "description": "manifest.json",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema", "id", "title", "artist", "durationS", "sampleRate", "sourceHash", "tools",
+        "lyricsSource", "lyricsNeedReview", "bpm", "range", "typicalRange", "bakedKeys"
+      ],
+      "properties": {
+        "schema": { "const": 1 },
+        "id": {
+          "description": "Folder name, e.g. \"gigi-perez-sailor-song\".",
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+        },
+        "title": { "type": "string" },
+        "artist": { "type": "string" },
+        "durationS": { "type": "number", "exclusiveMinimum": 0 },
+        "sampleRate": { "description": "Sample rate of the stems; songprep writes 44100.", "type": "integer", "exclusiveMinimum": 0 },
+        "sourceHash": { "description": "Hash of the imported audio file, e.g. \"sha256:...\".", "type": "string", "minLength": 1 },
+        "tools": {
+          "description": "Tool and model versions used for the import.",
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
+        "lyricsSource": { "enum": ["file", "lrclib", "transcribed"] },
+        "lyricsNeedReview": { "type": "boolean" },
+        "bpm": { "type": "number", "exclusiveMinimum": 0 },
+        "range": { "description": "Lowest and highest notes of 150 ms or longer.", "$ref": "#/$defs/midiRange" },
+        "typicalRange": {
+          "description": "Where most of the melody sits: the duration-weighted 10th to 90th percentile.",
+          "$ref": "#/$defs/midiRange"
+        },
+        "bakedKeys": {
+          "description": "Semitone shifts for which a pre-rendered instrumental exists, as instrumental_k+3.flac or instrumental_k-2.flac.",
+          "type": "array",
+          "items": { "type": "integer" }
+        }
+      }
+    },
+    "note": {
+      "title": "Note",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "t", "d", "midi", "cents", "text", "word", "line", "phrase", "kind"],
+      "properties": {
+        "id": { "type": "integer", "minimum": 0 },
+        "t": { "description": "Start, seconds.", "$ref": "#/$defs/seconds" },
+        "d": { "description": "Duration, seconds.", "type": "number", "exclusiveMinimum": 0 },
+        "midi": { "description": "Whole MIDI pitch as sung in the original.", "type": "integer", "minimum": 0, "maximum": 127 },
+        "cents": { "description": "The original singer's offset from that pitch.", "type": "number", "minimum": -100, "maximum": 100 },
+        "text": { "description": "Syllable or word; \"~\" continues the previous syllable on a new pitch.", "type": "string" },
+        "word": { "description": "Index of the word within its line: lyrics.lines[line].words[word].", "type": "integer", "minimum": 0 },
+        "line": { "description": "Index into lyrics.lines.", "type": "integer", "minimum": 0 },
+        "phrase": { "description": "Notes sharing a phrase number are sung on one breath.", "type": "integer", "minimum": 0 },
+        "kind": { "description": "rap notes are scored for timing only; free notes are not scored.", "enum": ["normal", "rap", "free"] }
+      }
+    },
+    "notes": {
+      "title": "Note[]",
+      "description": "notes.json and notes.auto.json",
+      "type": "array",
+      "items": { "$ref": "#/$defs/note" }
+    },
+    "timedText": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["t0", "t1", "text"],
+      "properties": {
+        "t0": { "$ref": "#/$defs/seconds" },
+        "t1": { "$ref": "#/$defs/seconds" },
+        "text": { "type": "string" }
+      }
+    },
+    "lyrics": {
+      "title": "Lyrics",
+      "description": "lyrics.json",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["offsetS", "lines"],
+      "properties": {
+        "offsetS": {
+          "description": "Correction between the lyric source's timing and this audio. songprep has already applied it: the times below are in this audio's timeline.",
+          "type": "number"
+        },
+        "lines": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["t0", "t1", "text", "words"],
+            "properties": {
+              "t0": { "$ref": "#/$defs/seconds" },
+              "t1": { "$ref": "#/$defs/seconds" },
+              "text": { "type": "string" },
+              "words": { "type": "array", "items": { "$ref": "#/$defs/timedText" } }
+            }
+          }
+        }
+      }
+    },
+    "beats": {
+      "title": "Beats",
+      "description": "beats.json",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["beats", "downbeats"],
+      "properties": {
+        "beats": { "type": "array", "items": { "$ref": "#/$defs/seconds" } },
+        "downbeats": { "type": "array", "items": { "$ref": "#/$defs/seconds" } }
+      }
+    },
+    "f0": {
+      "title": "F0",
+      "description": "f0.json: the original singer's pitch curve. Frame i is at time i * hopS. hz is 0 where unvoiced. hz and conf have the same length.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hopS", "hz", "conf"],
+      "properties": {
+        "hopS": { "type": "number", "exclusiveMinimum": 0 },
+        "hz": { "type": "array", "items": { "type": "number", "minimum": 0 } },
+        "conf": { "type": "array", "items": { "type": "number", "minimum": 0, "maximum": 1 } }
+      }
+    },
+    "peakTrack": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["min", "max"],
+      "properties": {
+        "min": { "type": "array", "items": { "type": "number", "minimum": -1, "maximum": 1 } },
+        "max": { "type": "array", "items": { "type": "number", "minimum": -1, "maximum": 1 } }
+      }
+    },
+    "peaks": {
+      "title": "Peaks",
+      "description": "peaks.json: waveform overview for the note editor. Not part of types.ts yet. For each stem, the lowest and highest sample of the mono mix in every hopS window; window i starts at i * hopS.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hopS", "vocals", "instrumental"],
+      "properties": {
+        "hopS": { "type": "number", "exclusiveMinimum": 0 },
+        "vocals": { "$ref": "#/$defs/peakTrack" },
+        "instrumental": { "$ref": "#/$defs/peakTrack" }
+      }
+    },
+    "songIndexEntry": {
+      "title": "SongIndexEntry",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "artist", "durationS"],
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "artist": { "type": "string" },
+        "durationS": { "type": "number", "exclusiveMinimum": 0 }
+      }
+    },
+    "songIndex": {
+      "title": "SongIndexEntry[]",
+      "description": "songs/index.json",
+      "type": "array",
+      "items": { "$ref": "#/$defs/songIndexEntry" }
+    }
+  }
+}

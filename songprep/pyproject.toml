@@ -1,0 +1,35 @@
+[project]
+name = "songprep"
+version = "0.1.0"
+description = "Turn one song audio file into a song package for the singing-practice app"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "numpy>=2.0",
+    "scipy>=1.13",
+    "soundfile>=0.12",
+    "swift-f0[audio]==0.3.0",
+]
+
+[project.scripts]
+songprep = "songprep.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "jsonschema>=4.21",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/songprep"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "integration: runs the heavy external tools; needs network on first use (deselected by default)",
+]
+addopts = "-m 'not integration'"
