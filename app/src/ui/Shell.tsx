@@ -27,6 +27,9 @@ export function Shell() {
           <NavLink to="/songs" className={linkClass}>
             Songs
           </NavLink>
+          <NavLink to="/progress" className={linkClass}>
+            Progress
+          </NavLink>
           <NavLink to="/range" className={linkClass}>
             Range
           </NavLink>

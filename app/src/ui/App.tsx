@@ -3,8 +3,10 @@ import { isChromium } from "./browser";
 import { EngineProvider } from "./engine";
 import { Lab } from "./Lab";
 import { PhrasePractice } from "./PhrasePractice";
+import { PitchCheck } from "./PitchCheck";
 import { headlineClass } from "./lab/styles";
 import { Practice } from "./Practice";
+import { Progress } from "./Progress";
 import { Range } from "./Range";
 import { Session } from "./Session";
 import { Shell } from "./Shell";
@@ -35,6 +37,8 @@ export function App() {
             <Route path="songs" element={<Songs />} />
             <Route path="songs/:id" element={<Song />} />
             <Route path="songs/:id/practice" element={<PhrasePractice />} />
+            <Route path="check" element={<PitchCheck />} />
+            <Route path="progress" element={<Progress />} />
             <Route path="range" element={<Range />} />
             <Route path="lab" element={<Lab />} />
           </Route>
