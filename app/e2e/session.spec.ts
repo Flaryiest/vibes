@@ -25,3 +25,23 @@ test("a whole session runs through its parts and is saved with a backup", async 
   await page.getByRole("link", { name: "Back to today" }).click();
   await expect(page.getByText("1 of 5 days practiced")).toBeVisible();
 });
+
+test("once the whole song is at full speed and headphones are in use, the session adds a run-through", async ({ page }) => {
+  test.setTimeout(120_000);
+  const at = (group: number) => ({ songId: "test-drone", group, step: 5, streak: 0, cleanDays: [], missed: {}, sticky: [], lastPracticed: "2026-11-13" });
+  await seed(page, {
+    profile: [PROFILE],
+    songSettings: [DRONE_KEY],
+    phraseProgress: [at(0), at(2)],
+    settings: [{ key: "route", value: "headphones" }],
+  });
+  await page.goto("/session?mic=fake&speed=60");
+  await page.getByRole("button", { name: "Start audio" }).click();
+  const part = page.getByTestId("session-part");
+  await expect(part).toHaveText("Part 1 of 6: warm-up");
+  for (let i = 0; i < 4; i++) await page.getByRole("button", { name: "Skip this part" }).click();
+  await expect(part).toHaveText("Part 5 of 6: run-through");
+  await expect(page.getByRole("button", { name: "Record a run-through" })).toBeVisible({ timeout: 15_000 });
+  await page.getByRole("button", { name: "Next part" }).click();
+  await expect(part).toHaveText("Part 6 of 6: check-in");
+});

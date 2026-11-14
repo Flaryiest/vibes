@@ -12,6 +12,7 @@ import { Session } from "./Session";
 import { Shell } from "./Shell";
 import { Song } from "./Song";
 import { SongEdit } from "./SongEdit";
+import { Take } from "./Take";
 import { Songs } from "./Songs";
 import { Today } from "./Today";
 
@@ -39,6 +40,7 @@ export function App() {
             <Route path="songs/:id" element={<Song />} />
             <Route path="songs/:id/practice" element={<PhrasePractice />} />
             <Route path="songs/:id/edit" element={<SongEdit />} />
+            <Route path="songs/:id/take" element={<Take />} />
             <Route path="check" element={<PitchCheck />} />
             <Route path="progress" element={<Progress />} />
             <Route path="range" element={<Range />} />

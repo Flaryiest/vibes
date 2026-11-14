@@ -5,6 +5,7 @@ import type { RangeProfile } from "../practice/exercises";
 import type { Skill } from "../practice/ladder";
 import type { PhraseProgress } from "../practice/phraseLadder";
 import { planSession, type Block } from "../practice/planner";
+import { buildPhrases, practiceOrder } from "../song/phrases";
 import { loadIndex, loadPackage } from "../song/package";
 import type { SongPackage } from "../song/types";
 import {
@@ -27,6 +28,7 @@ import { Drill } from "./Practice";
 import { CheckIn } from "./session/CheckIn";
 import { Rest } from "./session/Rest";
 import { WarmUp } from "./session/WarmUp";
+import { TakeBlock } from "./Take";
 
 /** "?speed=60" runs every part sixty times faster, for the end-to-end test. */
 const speed = Number(new URLSearchParams(location.search).get("speed") ?? 1) || 1;
@@ -49,6 +51,15 @@ async function currentSong(): Promise<SongInPlan | null> {
     }
   }
   return null;
+}
+
+/**
+ * A run-through is the whole song, so it only makes sense once every phrase
+ * has reached singing the words at full speed (step 5).
+ */
+function wholeSongAtFullSpeed(song: SongInPlan): boolean {
+  const groups = practiceOrder(buildPhrases(song.pkg.notes));
+  return groups.every((phrase) => (song.progress.find((p) => p.group === phrase.group)?.step ?? 1) >= 5);
 }
 
 function Runner({ engine, loaded }: { engine: AudioEngine; loaded: Loaded & { profile: RangeProfile } }) {
@@ -89,7 +100,7 @@ function Runner({ engine, loaded }: { engine: AudioEngine; loaded: Loaded & { pr
         </span>
         {block.kind !== "checkin" && (
           <button onClick={next} className={quietButtonClass}>
-            Skip this part
+            {block.kind === "runthrough" ? "Next part" : "Skip this part"}
           </button>
         )}
       </div>
@@ -112,6 +123,9 @@ function Runner({ engine, loaded }: { engine: AudioEngine; loaded: Loaded & { pr
             onDone={next}
           />
         )}
+        {block.kind === "runthrough" && song && (
+          <TakeBlock engine={engine} pkg={song.pkg} profile={profile} settings={song.settings} />
+        )}
         {block.kind === "checkin" && <CheckIn onSave={(effort, throat) => void save(effort, throat)} />}
       </div>
     </div>
@@ -124,21 +138,21 @@ export function Session() {
 
   useEffect(() => {
     void (async () => {
-      const [profile, skill, song, checks, sessions, minutes] = await Promise.all([
+      const [profile, skill, song, checks, sessions, minutes, route] = await Promise.all([
         loadProfile(),
         loadSkill(),
         currentSong(),
         pitchChecks(),
         sessionsSince(new Date(Date.now() - 14 * 24 * 3600 * 1000).toISOString()),
         getSetting("sessionMinutes", 30),
+        getSetting<string | null>("route", null),
       ]);
       const last = sessions.sort((a, b) => a.at.localeCompare(b.at)).at(-1);
       const plan = planSession({
         minutes,
         pitchCheckPct: checks.at(-1)?.pctInTune ?? null,
         hasSong: song !== null,
-        // Scored run-throughs are recorded from the song's own screen.
-        canRunThrough: false,
+        canRunThrough: song !== null && route === "headphones" && wholeSongAtFullSpeed(song),
         lastThroat: last?.throat ?? null,
       });
       setLoaded({ profile, skill, song, blocks: plan.blocks, note: plan.note });

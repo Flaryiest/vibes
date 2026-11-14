@@ -227,6 +227,7 @@ export function TakeSession({ engine, pkg, transport, profile, settings, savedRo
           scoredNotes,
           totalNotes,
           key: { trackShift: settings.trackShift, octaveDrop: settings.octaveDrop },
+          metrics: take.metrics,
         },
         { sampleRate: STORED_RATE, pcm: toPcm16(take.pcm, take.sampleRate, STORED_RATE).buffer },
       );
@@ -463,7 +464,7 @@ function useTransport(engine: AudioEngine, songId: string): { transport: Transpo
 }
 
 /** Loads what a take needs before it can start: the song's audio, and how the learner listens. */
-function Loaded(props: Omit<SessionProps, "transport" | "savedRoute">) {
+export function TakeBlock(props: Omit<SessionProps, "transport" | "savedRoute">) {
   const { transport, error } = useTransport(props.engine, props.pkg.manifest.id);
   // Undefined until the stored choice has been read.
   const [savedRoute, setSavedRoute] = useState<Route | null | undefined>(undefined);
@@ -497,7 +498,7 @@ export function Take() {
   }
   return (
     <AudioGate prompt={`Turn on the microphone to record ${pkg.manifest.title}.`}>
-      {(engine) => <Loaded engine={engine} pkg={pkg} profile={profile} settings={settings} />}
+      {(engine) => <TakeBlock engine={engine} pkg={pkg} profile={profile} settings={settings} />}
     </AudioGate>
   );
 }

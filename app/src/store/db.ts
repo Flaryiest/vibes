@@ -3,6 +3,7 @@ import type { Level, RangeProfile } from "../practice/exercises";
 import { initialSkill, type DisplayMode, type Skill } from "../practice/ladder";
 import type { PhraseProgress } from "../practice/phraseLadder";
 import type { NoteResult } from "../scoring/notes";
+import type { TakeMetrics } from "../scoring/take";
 import type { KeySetting } from "../song/key";
 
 type ProfileRow = RangeProfile & { id: "me"; measuredAt: string };
@@ -34,6 +35,8 @@ export type TakeRow = {
   scoredNotes: number;
   totalNotes: number;
   key: KeySetting;
+  /** Every measure of the take: bias, steadiness, timing and the rest. Absent on takes stored before these were kept. */
+  metrics?: TakeMetrics;
 };
 
 /** A take's audio: 16-bit mono samples. */
