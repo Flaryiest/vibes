@@ -2,6 +2,8 @@ import path from "node:path";
 import { defineConfig } from "@playwright/test";
 
 const fakeMicrophone = path.resolve(import.meta.dirname, "e2e/fixtures/a2.wav");
+// E2E_PORT lets several checkouts run their tests at once without sharing a port.
+const port = Number(process.env.E2E_PORT ?? 4747);
 
 export default defineConfig({
   testDir: "e2e",
@@ -9,7 +11,7 @@ export default defineConfig({
   workers: 1,
   globalSetup: "./e2e/global-setup.ts",
   use: {
-    baseURL: "http://localhost:4747",
+    baseURL: `http://localhost:${port}`,
     channel: "chrome",
     permissions: ["microphone"],
     launchOptions: {
@@ -24,10 +26,11 @@ export default defineConfig({
     // The real local server, so tests cover songs, saved notes and backups too.
     command: "pnpm build && node ../server/index.mjs",
     env: {
+      PORT: String(port),
       SONGS_DIR: path.resolve(import.meta.dirname, "e2e/fixtures/songs"),
       DATA_DIR: path.resolve(import.meta.dirname, "e2e/fixtures/data"),
     },
-    url: "http://localhost:4747",
+    url: `http://localhost:${port}`,
     reuseExistingServer: true,
     timeout: 120_000,
   },
