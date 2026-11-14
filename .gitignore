@@ -6,3 +6,4 @@ data/
 app/e2e/fixtures/
 app/test-results/
 app/playwright-report/
+.claude/
