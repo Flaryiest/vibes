@@ -2,34 +2,39 @@ import { useEffect, useRef } from "react";
 import type { AudioEngine } from "../audio/engine";
 import { hzToMidi } from "../dsp/music";
 import type { PitchFrame } from "../pitch/smoother";
-import type { Repetition } from "../practice/repetition";
+import type { RepView } from "../practice/repView";
 import type { NoteResult } from "../scoring/notes";
 
-type View = { repetition: Repetition | null; showTrace: boolean; results: NoteResult[] | null };
+type View = { view: RepView | null; showTrace: boolean; results: NoteResult[] | null };
 
 /**
  * One repetition, left to right: outlined notes to listen to, then filled notes
  * to sing, with a playhead moving across. The learner's pitch is drawn in brass
  * when `showTrace` is set, and a note that was hit turns brass.
  */
-export function PracticeCanvas({ engine, repetition, showTrace, results }: View & { engine: AudioEngine }) {
+export function PracticeCanvas({ engine, view, showTrace, results }: View & { engine: AudioEngine }) {
   const ref = useRef<HTMLCanvasElement>(null);
-  const view = useRef<View>({ repetition, showTrace, results });
+  const latest = useRef<View>({ view, showTrace, results });
 
   useEffect(() => {
-    view.current = { repetition, showTrace, results };
-  }, [repetition, showTrace, results]);
+    latest.current = { view, showTrace, results };
+  }, [view, showTrace, results]);
 
   useEffect(() => {
     const canvas = ref.current!;
     const g = canvas.getContext("2d")!;
     const token = (name: string) => getComputedStyle(canvas).getPropertyValue(name).trim();
-    const colors = { rule: token("--color-rule"), chalk: token("--color-chalk"), brass: token("--color-brass") };
+    const colors = {
+      rule: token("--color-rule"),
+      chalk: token("--color-chalk"),
+      mist: token("--color-mist"),
+      brass: token("--color-brass"),
+    };
 
     const frames: PitchFrame[] = [];
     const unsubscribe = engine.onFrame((frame) => {
       frames.push(frame);
-      while (frame.t - frames[0].t > 15) frames.shift();
+      while (frame.t - frames[0].t > 30) frames.shift();
     });
 
     const resize = () => {
@@ -46,58 +51,88 @@ export function PracticeCanvas({ engine, repetition, showTrace, results }: View 
       const ratio = window.devicePixelRatio || 1;
       const { width, height } = canvas;
       g.clearRect(0, 0, width, height);
-      const current = view.current;
-      if (current.repetition) {
-        const { exercise, listenAt, singAt, endAt } = current.repetition;
-        const midis = exercise.notes.map((note) => note.midi);
+      const current = latest.current;
+      const rep = current.view;
+      if (rep && rep.notes.length > 0) {
+        const midis = rep.notes.map((note) => note.midi);
         const low = Math.min(...midis) - 5;
         const high = Math.max(...midis) + 5;
-        const x = (t: number) => ((t - listenAt) / (endAt - listenAt)) * width;
-        const y = (midi: number) => height - ((midi - low) / (high - low)) * height;
+        const textRoom = 18 * ratio;
+        const x = (t: number) => ((t - rep.startAt) / (rep.endAt - rep.startAt)) * width;
+        const y = (midi: number) => height - textRoom - ((midi - low) / (high - low)) * (height - textRoom);
 
         // One hairline per semitone.
         g.lineWidth = ratio;
         g.strokeStyle = colors.rule;
         g.globalAlpha = 0.35;
-        for (let midi = low; midi <= high; midi++) {
+        for (let midi = Math.ceil(low); midi <= high; midi++) {
           const py = Math.round(y(midi)) + 0.5;
           g.beginPath();
           g.moveTo(0, py);
           g.lineTo(width, py);
           g.stroke();
         }
+        g.globalAlpha = 1;
 
         // The line between listening and singing.
-        g.globalAlpha = 1;
-        const divide = Math.round(x(singAt - 0.25)) + 0.5;
-        g.beginPath();
-        g.moveTo(divide, 0);
-        g.lineTo(divide, height);
-        g.stroke();
+        if (rep.listenAt !== null && rep.singAt !== null) {
+          const divide = Math.round(x(rep.singAt - 0.15)) + 0.5;
+          g.beginPath();
+          g.moveTo(divide, 0);
+          g.lineTo(divide, height);
+          g.stroke();
+        }
 
         // Each note is one semitone tall: singing inside the bar is in tune.
         const bar = (start: number, note: { t: number; d: number; midi: number }) => {
           const left = x(start + note.t);
           const top = y(note.midi + 0.5);
           g.beginPath();
-          g.roundRect(left, top, x(start + note.t + note.d) - left, y(note.midi - 0.5) - top, 4 * ratio);
+          g.roundRect(left, top, Math.max(2, x(start + note.t + note.d) - left - ratio), y(note.midi - 0.5) - top, 4 * ratio);
         };
-        for (const note of exercise.notes) {
-          bar(listenAt, note);
-          g.globalAlpha = 0.5;
-          g.strokeStyle = colors.chalk;
-          g.stroke();
-
-          const hit = current.results?.find((r) => r.id === note.id)?.outcome === "hit";
-          bar(singAt, note);
-          g.globalAlpha = hit ? 0.45 : 0.14;
-          g.fillStyle = hit ? colors.brass : colors.chalk;
-          g.fill();
+        g.font = `${12 * ratio}px "Instrument Sans Variable", sans-serif`;
+        g.textBaseline = "top";
+        for (const note of rep.notes) {
+          if (rep.listenAt !== null) {
+            bar(rep.listenAt, note);
+            g.globalAlpha = 0.5;
+            g.strokeStyle = colors.chalk;
+            g.stroke();
+          }
+          if (rep.singAt !== null) {
+            const hit = current.results?.find((r) => r.id === note.id)?.outcome === "hit";
+            bar(rep.singAt, note);
+            g.globalAlpha = hit ? 0.45 : 0.14;
+            g.fillStyle = hit ? colors.brass : colors.chalk;
+            g.fill();
+          }
+          if (note.text) {
+            g.globalAlpha = 1;
+            g.fillStyle = colors.mist;
+            g.fillText(note.text, x((rep.singAt ?? rep.listenAt ?? rep.startAt) + note.t), y(note.midi - 0.5) + 4 * ratio);
+          }
         }
         g.globalAlpha = 1;
 
+        // The original singer's line, while listening.
+        if (rep.curve && rep.listenAt !== null) {
+          g.strokeStyle = colors.mist;
+          g.lineWidth = 1.5 * ratio;
+          g.lineJoin = "round";
+          let previousT = -Infinity;
+          g.beginPath();
+          for (const point of rep.curve) {
+            const px = x(rep.listenAt + point.t);
+            const py = y(point.midi);
+            if (point.t - previousT <= 0.05) g.lineTo(px, py);
+            else g.moveTo(px, py);
+            previousT = point.t;
+          }
+          g.stroke();
+        }
+
         // The learner's voice, only during the response.
-        if (current.showTrace) {
+        if (current.showTrace && rep.singAt !== null) {
           g.strokeStyle = colors.brass;
           g.lineWidth = 2 * ratio;
           g.lineJoin = "round";
@@ -105,7 +140,7 @@ export function PracticeCanvas({ engine, repetition, showTrace, results }: View 
           let previous: PitchFrame | null = null;
           g.beginPath();
           for (const frame of frames) {
-            if (frame.hz === null || frame.t < singAt - 0.3 || frame.t > endAt) {
+            if (frame.hz === null || frame.t < rep.singAt - 0.3 || frame.t > rep.endAt) {
               previous = null;
               continue;
             }
@@ -120,7 +155,7 @@ export function PracticeCanvas({ engine, repetition, showTrace, results }: View 
 
         // The playhead.
         const now = engine.ctx.currentTime;
-        if (now >= listenAt && now <= endAt) {
+        if (now >= rep.startAt && now <= rep.endAt) {
           const px = Math.round(x(now)) + 0.5;
           g.strokeStyle = colors.chalk;
           g.globalAlpha = 0.6;

@@ -4,6 +4,7 @@ import { trackPitch } from "../pitch/track";
 import { playGuide } from "../playback/guide";
 import { isSuccess, scoreResponse, type NoteResult } from "../scoring/notes";
 import type { Exercise } from "./exercises";
+import type { RepView } from "./repView";
 
 /** When each part of a repetition happens, in seconds on the audio clock. */
 export type Repetition = { exercise: Exercise; listenAt: number; singAt: number; endAt: number };
@@ -56,3 +57,12 @@ export async function runRepetition(
   const { offsetS, notes } = scoreResponse(track, targets, MAX_SHIFT_S);
   return { repetition, notes, offsetS, success: isSuccess(notes) };
 }
+
+/** What the practice canvas draws for a repetition. */
+export const repetitionView = (r: Repetition): RepView => ({
+  startAt: r.listenAt,
+  endAt: r.endAt,
+  listenAt: r.listenAt,
+  singAt: r.singAt,
+  notes: r.exercise.notes,
+});

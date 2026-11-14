@@ -5,7 +5,7 @@ import { midiToHz } from "../dsp/music";
 import { noiseGate } from "../lab/measure";
 import { LEVEL_NAMES, makeExercise, type RangeProfile } from "../practice/exercises";
 import { MODE_NAMES, initialSkill, recordAttempt, type Skill } from "../practice/ladder";
-import { runRepetition, type Repetition } from "../practice/repetition";
+import { repetitionView, runRepetition, type Repetition } from "../practice/repetition";
 import { describeResult } from "../scoring/feedback";
 import type { NoteResult } from "../scoring/notes";
 import { addAttempt, loadProfile, loadSkill, saveSkill } from "../store/db";
@@ -182,7 +182,7 @@ function Drill({
         <>
           <PracticeCanvas
             engine={engine}
-            repetition={repetition}
+            view={repetition && repetitionView(repetition)}
             showTrace={showTrace}
             results={phase === "result" ? results : null}
           />

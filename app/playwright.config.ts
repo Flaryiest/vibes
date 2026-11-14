@@ -23,6 +23,10 @@ export default defineConfig({
   webServer: {
     // The real local server, so tests cover songs, saved notes and backups too.
     command: "pnpm build && node ../server/index.mjs",
+    env: {
+      SONGS_DIR: path.resolve(import.meta.dirname, "e2e/fixtures/songs"),
+      DATA_DIR: path.resolve(import.meta.dirname, "e2e/fixtures/data"),
+    },
     url: "http://localhost:4747",
     reuseExistingServer: true,
     timeout: 120_000,

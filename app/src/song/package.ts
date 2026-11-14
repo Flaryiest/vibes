@@ -43,7 +43,7 @@ export function validatePackage(raw: {
 
 /** The imported songs. An empty list when none has been imported yet. */
 export async function loadIndex(): Promise<SongIndexEntry[]> {
-  const response = await fetch("/songs/index.json");
+  const response = await fetch("/song-files/index.json");
   if (!response.ok) return [];
   const list: unknown = await response.json();
   return Array.isArray(list) ? (list as SongIndexEntry[]) : [];
@@ -51,7 +51,7 @@ export async function loadIndex(): Promise<SongIndexEntry[]> {
 
 export async function loadPackage(id: string): Promise<SongPackage> {
   const get = async (name: string): Promise<unknown> => {
-    const response = await fetch(`/songs/${id}/${name}`);
+    const response = await fetch(`/song-files/${id}/${name}`);
     if (!response.ok) throw new Error(`This song package is damaged: ${name} is missing.`);
     return response.json();
   };
@@ -61,7 +61,7 @@ export async function loadPackage(id: string): Promise<SongPackage> {
   return validatePackage({ manifest, notes, lyrics, beats, f0 });
 }
 
-export const stemUrl = (id: string, stem: "instrumental" | "vocals"): string => `/songs/${id}/${stem}.flac`;
+export const stemUrl = (id: string, stem: "instrumental" | "vocals"): string => `/song-files/${id}/${stem}.flac`;
 
 /** Saves corrected notes into the package on disk, through the local server. */
 export async function saveNotes(id: string, notes: Note[]): Promise<void> {

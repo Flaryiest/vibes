@@ -29,7 +29,7 @@ export function AudioGate({
   return (
     <div className="pt-[18vh]">
       <p className={headlineClass}>{prompt}</p>
-      <button onClick={start} disabled={status === "starting"} className={`mt-8 ${buttonClass}`}>
+      <button onClick={() => void start()} disabled={status === "starting"} className={`mt-8 ${buttonClass}`}>
         Start audio
       </button>
       {status === "error" && <p className="mt-6 max-w-lg text-signal">{error}</p>}

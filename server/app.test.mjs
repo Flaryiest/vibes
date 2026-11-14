@@ -27,19 +27,21 @@ test("serves the app and its assets", async () => {
   assert.equal(await (await app.request("/assets/main.js")).text(), "console.log(1)");
 });
 
-test("serves the app for client-side routes", async () => {
-  const response = await app.request("/practice");
-  assert.equal(response.status, 200);
-  assert.match(await response.text(), /<title>app/);
+test("serves the app for client-side routes, including the song screens", async () => {
+  for (const route of ["/practice", "/songs", "/songs/test-song/practice"]) {
+    const response = await app.request(route);
+    assert.equal(response.status, 200);
+    assert.match(await response.text(), /<title>app/);
+  }
 });
 
 test("serves song packages", async () => {
-  const response = await app.request("/songs/index.json");
+  const response = await app.request("/song-files/index.json");
   assert.deepEqual(await response.json(), [{ id: "test-song" }]);
 });
 
 test("answers 404 for a missing song file instead of the app page", async () => {
-  assert.equal((await app.request("/songs/nope/notes.json")).status, 404);
+  assert.equal((await app.request("/song-files/nope/notes.json")).status, 404);
 });
 
 test("writes corrected notes into the package and leaves the automatic ones alone", async () => {

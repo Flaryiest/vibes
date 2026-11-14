@@ -60,7 +60,6 @@ export class Transport {
     const endCtxTime = at + (toS - fromS) / rate;
     const levels = [backingGain, vocalGain];
     this.tracks.forEach(({ node, gain }, i) => {
-      gain.gain.cancelScheduledValues(0);
       gain.gain.setValueAtTime(levels[i], Math.max(this.ctx.currentTime, at - 0.02));
       // Both tracks get the identical schedule, which keeps them aligned sample for sample.
       node.schedule({ output: at, active: true, input: fromS, rate, semitones });

@@ -94,8 +94,9 @@ export function createApp({ distDir, songsDir, dataDir }) {
 
   app.all("/api/*", (c) => c.json({ error: "Not found." }, 404));
 
-  app.get("/songs/*", async (c) => {
-    const file = inside(songsDir, decodeURIComponent(c.req.path.slice("/songs/".length)));
+  // Song packages. Not under /songs, which is one of the app's own screens.
+  app.get("/song-files/*", async (c) => {
+    const file = inside(songsDir, decodeURIComponent(c.req.path.slice("/song-files/".length)));
     if (!file) return c.json({ error: "Bad path." }, 400);
     return (await sendFile(c, file)) ?? c.json({ error: "Not found." }, 404);
   });

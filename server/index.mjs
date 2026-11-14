@@ -7,8 +7,9 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const port = Number(process.env.PORT ?? 4747);
 const app = createApp({
   distDir: path.join(root, "app", "dist"),
-  songsDir: path.join(root, "songs"),
-  dataDir: path.join(root, "data"),
+  // Overridable so the tests never touch the real songs and backups.
+  songsDir: process.env.SONGS_DIR ?? path.join(root, "songs"),
+  dataDir: process.env.DATA_DIR ?? path.join(root, "data"),
 });
 
 // Loopback only, on both address families, so "localhost" works however the browser resolves it.

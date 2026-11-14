@@ -8,7 +8,8 @@ type EngineState = {
   info: EngineInfo | null;
   status: EngineStatus;
   error: string;
-  start: () => Promise<void>;
+  /** Resolves to the running engine, or null if it could not start. */
+  start: () => Promise<AudioEngine | null>;
 };
 
 const EngineContext = createContext<EngineState | null>(null);
@@ -30,8 +31,8 @@ export function EngineProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<EngineStatus>("idle");
   const [error, setError] = useState("");
 
-  async function start() {
-    if (status === "starting" || status === "running") return;
+  async function start(): Promise<AudioEngine | null> {
+    if (status === "starting" || status === "running") return engine;
     setStatus("starting");
     try {
       const created = new AudioEngine(fakeMic ? { micPattern: /Fake.*Input/i } : {});
@@ -40,9 +41,11 @@ export function EngineProvider({ children }: { children: ReactNode }) {
       setEngine(created);
       setInfo(started);
       setStatus("running");
+      return created;
     } catch (cause) {
       setError(explain(cause));
       setStatus("error");
+      return null;
     }
   }
 
