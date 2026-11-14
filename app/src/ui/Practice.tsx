@@ -29,16 +29,21 @@ type Tally = { exercises: number; firstTry: number };
 const summarize = (tally: Tally) =>
   `${tally.exercises} ${tally.exercises === 1 ? "exercise" : "exercises"}, ${tally.firstTry} right first time`;
 
-function Drill({
+/** Pitch-matching exercises. With `onDone` it is one part of a longer session and hands over when its time is up. */
+export function Drill({
   engine,
   profile,
   startSkill,
   autostart,
+  budgetS = SESSION_S,
+  onDone,
 }: {
   engine: AudioEngine;
   profile: RangeProfile;
   startSkill: Skill;
   autostart: boolean;
+  budgetS?: number;
+  onDone?: () => void;
 }) {
   const [phase, setPhase] = useState<Phase>("ready");
   const [skill, setSkill] = useState(startSkill);
@@ -119,7 +124,7 @@ function Drill({
       setPhase("result");
       await wait(outcome.success ? 1500 : 2400);
       if (!alive()) return;
-      if ((Date.now() - startedAt) / 1000 >= SESSION_S) break;
+      if ((Date.now() - startedAt) / 1000 >= budgetS) break;
 
       // A missed exercise is repeated, up to three tries, before moving on.
       if (outcome.success === true || tries >= MAX_TRIES) {
@@ -129,12 +134,15 @@ function Drill({
         tries++;
       }
     }
-    if (alive()) setPhase("done");
+    if (!alive()) return;
+    if (onDone) onDone();
+    else setPhase("done");
   }
 
   function finish() {
     session.current++;
-    setPhase("done");
+    if (onDone) onDone();
+    else setPhase("done");
   }
 
   useEffect(() => {
@@ -189,7 +197,7 @@ function Drill({
           <div className="mt-6 flex items-center justify-between text-sm text-mist">
             <span className="tabular-nums">{summarize(tally)}</span>
             <button onClick={finish} className={quietButtonClass}>
-              Finish
+              {onDone ? "Next part" : "Finish"}
             </button>
           </div>
         </>

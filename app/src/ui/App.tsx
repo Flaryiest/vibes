@@ -6,6 +6,7 @@ import { PhrasePractice } from "./PhrasePractice";
 import { headlineClass } from "./lab/styles";
 import { Practice } from "./Practice";
 import { Range } from "./Range";
+import { Session } from "./Session";
 import { Shell } from "./Shell";
 import { Song } from "./Song";
 import { Songs } from "./Songs";
@@ -29,6 +30,7 @@ export function App() {
         <Routes>
           <Route element={<Shell />}>
             <Route index element={<Today />} />
+            <Route path="session" element={<Session />} />
             <Route path="practice" element={<Practice />} />
             <Route path="songs" element={<Songs />} />
             <Route path="songs/:id" element={<Song />} />

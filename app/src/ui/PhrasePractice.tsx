@@ -301,7 +301,7 @@ export function PhraseSession(props: SessionProps) {
           <div className="mt-8 flex items-end justify-between gap-6">
             <MasteryMap phrases={phrases} progress={progress} songId={songId} />
             <button onClick={finish} className={quietButtonClass}>
-              Finish
+              {onDone ? "Next part" : "Finish"}
             </button>
           </div>
         </>
@@ -325,7 +325,7 @@ export function PhraseSession(props: SessionProps) {
 }
 
 /** Loads the song's audio, then runs the session. */
-function WithTransport(props: Omit<SessionProps, "transport">) {
+export function SongPractice(props: Omit<SessionProps, "transport">) {
   const [transport, setTransport] = useState<Transport | null>(null);
   const [error, setError] = useState("");
   const songId = props.pkg.manifest.id;
@@ -373,7 +373,7 @@ export function PhrasePractice() {
   return (
     <AudioGate prompt={`Turn on the microphone to practice ${pkg.manifest.title}.`}>
       {(engine) => (
-        <WithTransport
+        <SongPractice
           engine={engine}
           pkg={pkg}
           profile={profile}

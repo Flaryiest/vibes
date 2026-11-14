@@ -4,7 +4,7 @@ import { playGuide } from "../playback/guide";
 import { Transport } from "../playback/transport";
 import { recommendKeys, targetMidi, type KeyChoice } from "../song/key";
 import { buildPhrases, practiceOrder } from "../song/phrases";
-import { saveSongSettings } from "../store/db";
+import { saveSongSettings, setSetting } from "../store/db";
 import { useEngine } from "./engine";
 import { describeFit, describeKey } from "./keyText";
 import { buttonClass, headlineClass, quietButtonClass } from "./lab/styles";
@@ -66,6 +66,7 @@ export function Song() {
       octaveDrop: choice.octaveDrop,
       backingGain: settings?.backingGain ?? 0.5,
     });
+    await setSetting("currentSong", id);
     transport.current?.stop();
     setChoosing(false);
     reload();
