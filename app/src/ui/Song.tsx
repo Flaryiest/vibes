@@ -4,6 +4,7 @@ import { playGuide } from "../playback/guide";
 import { Transport } from "../playback/transport";
 import { recommendKeys, targetMidi, type KeyChoice } from "../song/key";
 import { buildPhrases, practiceOrder } from "../song/phrases";
+import { PERFORMING_STEPS, readiness } from "../song/status";
 import { saveSongSettings, setSetting } from "../store/db";
 import { useEngine } from "./engine";
 import { describeFit, describeKey } from "./keyText";
@@ -24,7 +25,8 @@ export function Song() {
 
   if (error) return <p className="max-w-lg pt-[18vh] text-signal">{error}</p>;
   if (!data) return null;
-  const { pkg, profile, settings, progress } = data;
+  const { pkg, profile, settings, progress, takes, performed } = data;
+  const ready = readiness(takes);
 
   if (!profile) {
     return (
@@ -57,6 +59,12 @@ export function Song() {
       at,
     );
     setBusy("");
+  }
+
+  async function togglePerformed(step: string) {
+    const next = performed.includes(step) ? performed.filter((s) => s !== step) : [...performed, step];
+    await setSetting(`performed:${id}`, next);
+    reload();
   }
 
   async function use(choice: KeyChoice) {
@@ -137,6 +145,44 @@ export function Song() {
         <section className={sectionClass}>
           <h2 className="text-sm font-medium">Progress</h2>
           <MasteryMap phrases={phrases} progress={progress} songId={id} />
+        </section>
+
+        <section className={sectionClass}>
+          <h2 className="text-sm font-medium">Run-throughs</h2>
+          <div className="space-y-2 text-sm">
+            <p>
+              {ready.ready
+                ? "Ready to perform: three good run-throughs on three different days."
+                : `${ready.goodDays} of ${ready.daysNeeded} days with a run-through at 90% in tune or better.`}
+            </p>
+            <p className="tabular-nums text-mist">
+              {ready.bestPct === null ? "No scored run-through yet." : `Best so far: ${Math.round(ready.bestPct)}% in tune.`}
+            </p>
+          </div>
+        </section>
+
+        <section className={sectionClass}>
+          <h2 className="text-sm font-medium">Performing it</h2>
+          <div className="space-y-3">
+            <p className="max-w-prose text-sm text-mist">
+              Singing for people is its own skill. Work up to it in this order, and tick each one off when it is done.
+            </p>
+            <ol className="space-y-2 text-sm">
+              {PERFORMING_STEPS.map((step) => (
+                <li key={step.id}>
+                  <label className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={performed.includes(step.id)}
+                      onChange={() => void togglePerformed(step.id)}
+                      className="accent-chalk"
+                    />
+                    <span className={performed.includes(step.id) ? "text-mist line-through" : ""}>{step.label}</span>
+                  </label>
+                </li>
+              ))}
+            </ol>
+          </div>
         </section>
 
         {pkg.manifest.lyricsNeedReview && (
