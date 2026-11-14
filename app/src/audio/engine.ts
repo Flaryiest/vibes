@@ -93,7 +93,12 @@ export class AudioEngine {
     worker.onmessage = (event: MessageEvent<PitchFrame>) => {
       for (const listener of this.frameListeners) listener(event.data);
     };
+    let heardAudio = () => {};
+    const audioFlowing = new Promise<void>((resolve) => {
+      heardAudio = resolve;
+    });
     node.port.onmessage = (event: MessageEvent<Chunk>) => {
+      heardAudio();
       const { samples, frame0 } = event.data;
       if (this.capture) {
         if (this.capture.chunks.length === 0) this.capture.startFrame = frame0;
@@ -104,6 +109,11 @@ export class AudioEngine {
 
     navigator.mediaDevices.addEventListener("devicechange", this.handleDeviceChange);
     await ctx.resume();
+    // "Running" is only reported once microphone audio is actually arriving.
+    const timedOut = new Promise<"timeout">((resolve) => setTimeout(() => resolve("timeout"), 3000));
+    if ((await Promise.race([audioFlowing, timedOut])) === "timeout") {
+      throw new Error("The microphone opened but no sound is arriving. Reload the page and try again.");
+    }
     this.current = await this.readInfo();
     return this.current;
   }

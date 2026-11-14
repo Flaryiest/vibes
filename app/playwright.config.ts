@@ -5,6 +5,8 @@ const fakeMicrophone = path.resolve(import.meta.dirname, "e2e/fixtures/a2.wav");
 
 export default defineConfig({
   testDir: "e2e",
+  // One at a time: the tests share one port and one fake microphone, and audio timing matters.
+  workers: 1,
   globalSetup: "./e2e/global-setup.ts",
   use: {
     baseURL: "http://localhost:4747",
