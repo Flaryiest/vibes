@@ -8,3 +8,10 @@ export const quietButtonClass =
 
 export const inputClass =
   "w-full rounded-md border border-rule bg-transparent px-2.5 py-1.5 text-sm text-chalk placeholder:text-mist/60";
+
+export const tableClass = "w-full text-left text-sm tabular-nums";
+export const headCellClass = "whitespace-nowrap pb-2 pr-6 font-normal text-mist";
+export const cellClass = "whitespace-nowrap py-1 pr-6 align-top";
+/** A cell whose text may wrap, for long labels. */
+export const wrapCellClass = "py-1 pr-6 align-top";
+export const noteClass = "max-w-prose text-sm text-mist";
