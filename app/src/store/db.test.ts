@@ -25,6 +25,7 @@ import {
   sessionsSince,
   setSetting,
   takeAudio,
+  takeIdsWithAudio,
   takesFor,
   type AttemptRow,
 } from "./db";
@@ -99,6 +100,18 @@ describe("store", () => {
     expect((await takesFor("song")).map((t) => t.id)).toEqual([earlier, later]);
     expect(new Int16Array((await takeAudio(earlier))!.pcm)).toEqual(new Int16Array([1, 2, 3]));
     expect(await takeAudio(later)).toBeNull();
+  });
+
+  it("says which takes have audio without loading it", async () => {
+    const key = { trackShift: 0, octaveDrop: 0 as const };
+    const base = { songId: "song", kind: "run" as const, pctInTune: 80, meanAbsCents: 30, scoredNotes: 40, totalNotes: 44, key };
+    const audio = { sampleRate: 16000, pcm: new Int16Array([1, 2, 3]).buffer };
+    const first = await addTake({ ...base, at: "2026-11-10T10:00:00.000Z" }, audio);
+    const second = await addTake({ ...base, at: "2026-11-11T10:00:00.000Z" });
+    const third = await addTake({ ...base, at: "2026-11-12T10:00:00.000Z" }, audio);
+    expect(await takeIdsWithAudio([first, second, third])).toEqual([first, third]);
+    expect(await takeIdsWithAudio([second])).toEqual([]);
+    expect(await takeIdsWithAudio([])).toEqual([]);
   });
 
   it("stores sessions, pitch checks and settings", async () => {

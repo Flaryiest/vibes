@@ -5,20 +5,30 @@ import type { PitchFrame } from "../pitch/smoother";
 import type { RepView } from "../practice/repView";
 import type { NoteResult } from "../scoring/notes";
 
-type View = { view: RepView | null; showTrace: boolean; results: NoteResult[] | null };
+type View = {
+  view: RepView | null;
+  showTrace: boolean;
+  results: NoteResult[] | null;
+  /**
+   * For something too long to fit across, such as a whole song: show a window
+   * of this many seconds that moves with the music, with "now" held a quarter
+   * of the way across.
+   */
+  scrollS?: number;
+};
 
 /**
  * One repetition, left to right: outlined notes to listen to, then filled notes
  * to sing, with a playhead moving across. The learner's pitch is drawn in brass
  * when `showTrace` is set, and a note that was hit turns brass.
  */
-export function PracticeCanvas({ engine, view, showTrace, results }: View & { engine: AudioEngine }) {
+export function PracticeCanvas({ engine, view, showTrace, results, scrollS }: View & { engine: AudioEngine }) {
   const ref = useRef<HTMLCanvasElement>(null);
-  const latest = useRef<View>({ view, showTrace, results });
+  const latest = useRef<View>({ view, showTrace, results, scrollS });
 
   useEffect(() => {
-    latest.current = { view, showTrace, results };
-  }, [view, showTrace, results]);
+    latest.current = { view, showTrace, results, scrollS };
+  }, [view, showTrace, results, scrollS]);
 
   useEffect(() => {
     const canvas = ref.current!;
@@ -58,7 +68,15 @@ export function PracticeCanvas({ engine, view, showTrace, results }: View & { en
         const low = Math.min(...midis) - 5;
         const high = Math.max(...midis) + 5;
         const textRoom = 18 * ratio;
-        const x = (t: number) => ((t - rep.startAt) / (rep.endAt - rep.startAt)) * width;
+        const now = engine.ctx.currentTime;
+        // The stretch of time drawn across the width: the whole repetition, or a window that moves with "now".
+        const scrolling = current.scrollS !== undefined && current.scrollS > 0;
+        const span = scrolling ? current.scrollS! : rep.endAt - rep.startAt;
+        const from = scrolling ? Math.min(Math.max(now, rep.startAt), rep.endAt) - span / 4 : rep.startAt;
+        const x = (t: number) => ((t - from) / span) * width;
+        // When scrolling, most notes are out of sight. A second of margin on the left keeps words that reach into view.
+        const inSight = (start: number | null, note: { t: number; d: number }) =>
+          start !== null && start + note.t + note.d > from - 1 && start + note.t < from + span;
         const y = (midi: number) => height - textRoom - ((midi - low) / (high - low)) * (height - textRoom);
 
         // One hairline per semitone.
@@ -93,6 +111,7 @@ export function PracticeCanvas({ engine, view, showTrace, results }: View & { en
         g.font = `${12 * ratio}px "Instrument Sans Variable", sans-serif`;
         g.textBaseline = "top";
         for (const note of rep.notes) {
+          if (scrolling && !inSight(rep.listenAt, note) && !inSight(rep.singAt, note)) continue;
           if (rep.listenAt !== null) {
             bar(rep.listenAt, note);
             g.globalAlpha = 0.5;
@@ -154,7 +173,6 @@ export function PracticeCanvas({ engine, view, showTrace, results }: View & { en
         }
 
         // The playhead.
-        const now = engine.ctx.currentTime;
         if (now >= rep.startAt && now <= rep.endAt) {
           const px = Math.round(x(now)) + 0.5;
           g.strokeStyle = colors.chalk;

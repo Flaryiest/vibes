@@ -69,6 +69,131 @@ describe("scoreNotes", () => {
   });
 });
 
+describe("scoreNotes: how a long note ends", () => {
+  it("reports no drift for a long note held steady", () => {
+    expect(single(A2).endDriftCents).toBeCloseTo(0, 3);
+  });
+
+  it("reports a negative drift when the end of a long note sags", () => {
+    // The steady portion of this note runs from 0.725 s to 1.85 s; its last 30% starts at 1.5125 s.
+    const sagging = track([
+      [0.5, 0],
+      [1, A2],
+      [0.5, shifted(A2, -40)],
+    ]);
+    const result = scoreNotes(sagging, [note(0.5, 1.5, 45)])[0];
+    expect(result.endDriftCents).toBeCloseTo(-40, 2);
+    expect(result.cents).toBeCloseTo(0, 2);
+  });
+
+  it("reports a positive drift when the end rises", () => {
+    const rising = track([
+      [0.5, 0],
+      [1, A2],
+      [0.5, shifted(A2, 25)],
+    ]);
+    expect(scoreNotes(rising, [note(0.5, 1.5, 45)])[0].endDriftCents).toBeCloseTo(25, 2);
+  });
+
+  it("measures drift from 0.6 seconds up, and not below", () => {
+    const sung = track([
+      [0.5, 0],
+      [2, A2],
+    ]);
+    expect(scoreNotes(sung, [note(0.5, 0.6, 45)])[0].endDriftCents).toBeCloseTo(0, 3);
+    expect(scoreNotes(sung, [note(0.5, 0.5, 45)])[0].endDriftCents).toBeNull();
+  });
+
+  it("follows the offset", () => {
+    const late = track([
+      [0.7, 0],
+      [1, A2],
+      [0.5, shifted(A2, -40)],
+    ]);
+    expect(scoreNotes(late, [note(0.5, 1.5, 45)], 0.2)[0].endDriftCents).toBeCloseTo(-40, 2);
+  });
+
+  it("has no drift for a note that was not scored", () => {
+    const result = scoreNotes(track([[1, A2]]), [note(5, 1, 45)])[0];
+    expect(result.endDriftCents).toBeNull();
+  });
+});
+
+describe("scoreNotes: when a note starts", () => {
+  /** The onset of a 1-second A2 target at 0.5 s, when the singer starts at `startS`. */
+  const onset = (startS: number, offsetS = 0): number | null | undefined =>
+    scoreNotes(
+      track([
+        [startS, 0],
+        [1.5, A2],
+      ]),
+      [note(0.5, 1, 45)],
+      offsetS,
+    )[0].onsetMs;
+
+  it("is about zero for a note started on time", () => {
+    expect(Math.abs(onset(0.5)!)).toBeLessThan(11);
+  });
+
+  it("is positive for a late start and negative for an early one", () => {
+    expect(onset(0.6)!).toBeGreaterThan(89);
+    expect(onset(0.6)!).toBeLessThan(111);
+    expect(onset(0.4)!).toBeGreaterThan(-111);
+    expect(onset(0.4)!).toBeLessThan(-89);
+  });
+
+  it("looks up to 250 ms after the target start", () => {
+    expect(onset(0.7)!).toBeGreaterThan(189);
+    expect(onset(0.8)).toBeNull();
+  });
+
+  it("looks no further than 120 ms before the target start", () => {
+    expect(onset(0.3)).toBeNull();
+  });
+
+  it("is measured from the shifted target", () => {
+    expect(Math.abs(onset(0.7, 0.2)!)).toBeLessThan(11);
+  });
+
+  it("ignores a sound shorter than 60 ms", () => {
+    const blip = track([
+      [0.45, 0],
+      [0.03, A2],
+      [0.12, 0],
+      [1.5, A2],
+    ]);
+    const result = scoreNotes(blip, [note(0.5, 1, 45)])[0];
+    expect(result.onsetMs!).toBeGreaterThan(89);
+    expect(result.onsetMs!).toBeLessThan(111);
+  });
+
+  it("finds no start when the voice carries over from the note before", () => {
+    const legato = track([
+      [0.5, 0],
+      [1, A2],
+      [1, CSHARP3],
+    ]);
+    const results = scoreNotes(legato, [note(0.5, 1, 45, 0), note(1.5, 1, 49, 1)]);
+    expect(Math.abs(results[0].onsetMs!)).toBeLessThan(11);
+    expect(results[1].onsetMs).toBeNull();
+  });
+
+  it("finds no start when the recording begins with the voice already sounding", () => {
+    expect(scoreNotes(track([[2, A2]]), [note(0.05, 1, 45)])[0].onsetMs).toBeNull();
+  });
+
+  it("reports the start of a note too short-lived to score", () => {
+    const cutOff = track([
+      [0.5, 0],
+      [0.2, A2],
+      [1.3, 0],
+    ]);
+    const result = scoreNotes(cutOff, [note(0.5, 1.5, 45)])[0];
+    expect(result.outcome).toBe("unscored");
+    expect(Math.abs(result.onsetMs!)).toBeLessThan(11);
+  });
+});
+
 describe("scoreResponse", () => {
   const targets = [note(0.5, 1, 45, 0), note(1.5, 1, 49, 1)];
 

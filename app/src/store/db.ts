@@ -140,6 +140,12 @@ export async function takeAudio(takeId: number): Promise<TakeAudioRow | null> {
   return (await db.takeAudio.get(takeId)) ?? null;
 }
 
+/** Which of these takes still have their audio, in ascending order. Reads the keys only, not the recordings. */
+export async function takeIdsWithAudio(takeIds: number[]): Promise<number[]> {
+  if (takeIds.length === 0) return [];
+  return db.takeAudio.where("takeId").anyOf(takeIds).primaryKeys();
+}
+
 export async function addSession(session: Omit<SessionRow, "id">): Promise<void> {
   await db.sessions.add(session);
 }
