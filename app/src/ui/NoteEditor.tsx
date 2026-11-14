@@ -438,7 +438,8 @@ export function NoteEditor({ notes, f0, durationS, onSave, onAudition }: NoteEdi
     notes: history.present,
     selectedId: null,
     playheadS: null,
-    startS: 0,
+    // Open on the first note, not on the introduction before anyone sings.
+    startS: Math.max(0, (history.present[0]?.t ?? 0) - 1),
     visibleS: START_VISIBLE_S,
     ...fitRows(history.present, null),
     drag: null,

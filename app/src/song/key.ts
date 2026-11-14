@@ -47,10 +47,17 @@ export function recommendKeys(notes: Note[], profile: RangeProfile, count = 3): 
         if (midi >= profile.comfortLow && midi <= profile.comfortHigh) inComfort += note.d;
         const below = Math.max(0, easyLow - midi);
         const above = Math.max(0, midi - easyHigh);
+        const outside = Math.max(0, profile.comfortLow - midi) + 1.5 * Math.max(0, midi - profile.comfortHigh);
         const beyond = Math.max(0, profile.comfortLow - 2 - midi, midi - (profile.comfortHigh + 2));
-        cost += note.d * (below + 1.5 * above + 50 * beyond);
+        cost += note.d * (below + 1.5 * above + 6 * outside + 50 * beyond);
       }
-      cost = cost / total + 0.05 * Math.abs(trackShift) + 0.5 * Math.max(0, Math.abs(trackShift) - CLEAN_SHIFT);
+      // The extreme notes count on their own, however briefly they are sung: one strained note spoils a line.
+      const extremes = Math.max(0, profile.comfortLow - low) + 1.5 * Math.max(0, high - profile.comfortHigh);
+      cost =
+        cost / total +
+        0.3 * extremes +
+        0.05 * Math.abs(trackShift) +
+        0.5 * Math.max(0, Math.abs(trackShift) - CLEAN_SHIFT);
       choices.push({ trackShift, octaveDrop, lowMidi: low, highMidi: high, inComfortPct: (100 * inComfort) / total, cost });
     }
   }

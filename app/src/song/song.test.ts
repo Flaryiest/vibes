@@ -88,6 +88,17 @@ describe("recommendKeys", () => {
     expect(best.inComfortPct).toBe(100);
   });
 
+  it("prefers a key that keeps every note inside the comfortable range, even at a larger shift", () => {
+    // Mostly mid-range, with one brief low note: a smaller shift would push that note below the comfortable bottom.
+    const withDip = [
+      ...[60, 62, 63, 65, 63, 62, 60, 58].map((midi, i) => note(i, midi, "la", 0, 1)),
+      note(8, 48, "low", 0, 0.2),
+    ];
+    const [best] = recommendKeys(withDip, { speakingMidi: 45, comfortLow: 40, comfortHigh: 60 });
+    expect(best.lowMidi).toBeGreaterThanOrEqual(40);
+    expect(best.highMidi).toBeLessThanOrEqual(60);
+  });
+
   it("leaves a melody that already fits where it is", () => {
     const fits = [45, 47, 48, 50, 52].map((midi, i) => note(i, midi, "la", 0, 1));
     expect(recommendKeys(fits, deepVoice)[0]).toMatchObject({ trackShift: 0, octaveDrop: 0 });
