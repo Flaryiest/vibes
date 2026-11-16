@@ -24,6 +24,24 @@ pnpm run install-agent      # undo with: pnpm run uninstall-agent
 
 Then, in Chrome, choose "Install Singing trainer" from the address bar to get a Dock icon.
 
+## On the web
+
+The same app is also published as a plain website: https://singing-trainer-six.vercel.app
+
+Open it in Chrome on the MacBook. Nothing has to be running on the Mac. It differs from the local copy in three ways, all because a website cannot read or write folders on your disk:
+
+- **Songs are added by hand.** Import a song as usual (see below), then on the Songs screen choose "Add a song" and pick the song's folder inside `songs/`, or `songs/` itself for all of them. The song is copied into Chrome's storage for the site. It is not uploaded anywhere, even though Chrome's own prompt calls it an upload.
+- **Corrected notes stay in the browser.** They are not written back to `songs/`. Removing a song from the site discards them.
+- **Backups are downloaded.** At the end of a session, "Download a backup" saves your progress as a file. There is no automatic daily backup.
+
+The website and the local copy keep separate progress. Pick one to practice in.
+
+To publish a new version after changing the code:
+
+```
+pnpm web-deploy     # builds here, then uploads only the built app
+```
+
 ## First use
 
 1. **Range**: three short recordings. Every exercise and song is then fitted to your voice.
@@ -51,12 +69,20 @@ The song then appears under Songs, where you pick a key, correct the extracted n
 | Progress, scores, recordings | Chrome's storage for `localhost:4747` |
 | Daily backups of progress (no audio) | `data/backups/`, last 30 days (not in git) |
 
+On the website, the songs you add, your progress, scores and recordings are all in Chrome's storage for that site, and backups are files you download.
+
 ## Develop
 
 ```
 pnpm dev            # app on 4747 with live reload; local server on 4748
 pnpm test           # unit tests for the app and the server
 pnpm e2e            # end-to-end tests in Chrome with a fake microphone
+```
+
+The end-to-end tests run twice over: against the local server, and against a plain static host that stands in for the website. To run the website's tests against the real thing:
+
+```
+HOSTED_URL=https://the-site.example pnpm e2e
 ```
 
 | Folder | Contents |

@@ -10,3 +10,5 @@ app/playwright-report/
 __pycache__/
 .venv/
 .pytest_cache/
+.vercel
+.env*
