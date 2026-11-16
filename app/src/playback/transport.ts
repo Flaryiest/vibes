@@ -1,4 +1,5 @@
-import { stemUrl } from "../song/package";
+import { loadStem } from "../song/package";
+import type { StemName } from "../song/songStore.types";
 import { createStretch, type StretchNode } from "./stretch";
 
 /** A stretch of the song that is playing or scheduled. Times are on the audio clock unless marked as song time. */
@@ -37,11 +38,7 @@ export class Transport {
   }
 
   static async load(ctx: AudioContext, songId: string): Promise<Transport> {
-    const decode = async (stem: "instrumental" | "vocals") => {
-      const response = await fetch(stemUrl(songId, stem));
-      if (!response.ok) throw new Error(`This song package is damaged: ${stem}.flac is missing.`);
-      return ctx.decodeAudioData(await response.arrayBuffer());
-    };
+    const decode = async (stem: StemName) => ctx.decodeAudioData(await loadStem(songId, stem));
     const buffers = await Promise.all([decode("instrumental"), decode("vocals")]);
     const tracks = await Promise.all(
       buffers.map(async (buffer) => {

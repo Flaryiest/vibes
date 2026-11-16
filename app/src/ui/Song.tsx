@@ -10,6 +10,7 @@ import { useEngine } from "./engine";
 import { describeFit, describeKey } from "./keyText";
 import { buttonClass, headlineClass, quietButtonClass } from "./lab/styles";
 import { MasteryMap } from "./MasteryMap";
+import { SongStorage } from "./SongStorage";
 import { useSong } from "./useSong";
 
 const sectionClass = "grid gap-x-10 gap-y-3 border-t border-rule py-8 md:grid-cols-[11rem_1fr]";
@@ -23,7 +24,17 @@ export function Song() {
   const [busy, setBusy] = useState("");
   const phrases = useMemo(() => (data ? buildPhrases(data.pkg.notes) : []), [data]);
 
-  if (error) return <p className="max-w-lg pt-[18vh] text-signal">{error}</p>;
+  if (error) {
+    return (
+      <div className="pt-[18vh]">
+        <p className="max-w-lg text-signal">{error}</p>
+        {/* A song kept in this browser can still be removed when it will not open, to make room for a good copy. */}
+        <div className="mt-12">
+          <SongStorage songId={id} className={sectionClass} onRemoving={() => transport.current?.stop()} />
+        </div>
+      </div>
+    );
+  }
   if (!data) return null;
   const { pkg, profile, settings, progress, takes, performed } = data;
   const ready = readiness(takes);
@@ -193,6 +204,8 @@ export function Song() {
             </p>
           </section>
         )}
+
+        <SongStorage songId={id} className={sectionClass} onRemoving={() => transport.current?.stop()} />
       </div>
     </div>
   );

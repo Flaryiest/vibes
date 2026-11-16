@@ -1,3 +1,6 @@
+import { PACKAGE_JSON_FILE_NAMES } from "./package.constants";
+import { songStore } from "./songStore";
+import type { PackageJsonFileName, ReadPackageFile, StemName } from "./songStore.types";
 import type { Beats, F0, Lyrics, Manifest, Note, SongIndexEntry, SongPackage } from "./types";
 
 function fail(what: string): never {
@@ -5,6 +8,26 @@ function fail(what: string): never {
 }
 
 const isNumber = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value);
+
+/**
+ * What is wrong with a list of notes, in a few words, or null when the app can
+ * use it. Asked both when a song is opened and before corrected notes are
+ * saved, so that saving can never leave a song that will not open again.
+ */
+export function findNotesProblem(notes: unknown): string | null {
+  if (!Array.isArray(notes) || notes.length === 0) return "there are no notes";
+  const candidates = notes as Note[];
+  for (const note of candidates) {
+    if (!isNumber(note.t) || !isNumber(note.d) || !isNumber(note.midi) || note.d <= 0) {
+      return "a note has a bad time or pitch";
+    }
+    if (!["normal", "rap", "free"].includes(note.kind)) return "a note has an unknown kind";
+  }
+  for (let i = 1; i < candidates.length; i++) {
+    if (candidates[i].t < candidates[i - 1].t) return "the notes are out of order";
+  }
+  return null;
+}
 
 /** Checks the parts of a package the app relies on, and says plainly what is wrong when one is missing. */
 export function validatePackage(raw: {
@@ -19,17 +42,9 @@ export function validatePackage(raw: {
   if (typeof manifest.id !== "string" || typeof manifest.title !== "string") fail("the manifest has no id or title");
   if (!isNumber(manifest.durationS) || manifest.durationS <= 0) fail("the manifest has no duration");
 
-  const notes = raw.notes as Note[] | null;
-  if (!Array.isArray(notes) || notes.length === 0) fail("it has no notes");
-  for (const note of notes) {
-    if (!isNumber(note.t) || !isNumber(note.d) || !isNumber(note.midi) || note.d <= 0) {
-      fail("a note has a bad time or pitch");
-    }
-    if (!["normal", "rap", "free"].includes(note.kind)) fail("a note has an unknown kind");
-  }
-  for (let i = 1; i < notes.length; i++) {
-    if (notes[i].t < notes[i - 1].t) fail("the notes are out of order");
-  }
+  const notesProblem = findNotesProblem(raw.notes);
+  if (notesProblem !== null) fail(notesProblem);
+  const notes = raw.notes as Note[];
 
   const lyrics = raw.lyrics as Lyrics | null;
   if (!lyrics || !Array.isArray(lyrics.lines)) fail("the lyrics are missing");
@@ -41,34 +56,51 @@ export function validatePackage(raw: {
   return { manifest, notes, lyrics, beats, f0 };
 }
 
-/** The imported songs. An empty list when none has been imported yet. */
-export async function loadIndex(): Promise<SongIndexEntry[]> {
-  const response = await fetch("/song-files/index.json");
-  if (!response.ok) return [];
-  const list: unknown = await response.json();
-  return Array.isArray(list) ? (list as SongIndexEntry[]) : [];
-}
+export const stemFileName = (stem: StemName): string => `${stem}.flac`;
 
-export async function loadPackage(id: string): Promise<SongPackage> {
-  const get = async (name: string): Promise<unknown> => {
-    const response = await fetch(`/song-files/${id}/${name}`);
-    if (!response.ok) throw new Error(`This song package is damaged: ${name} is missing.`);
-    return response.json();
+/** Reads a package's JSON files through `readFile` and checks them. The same for a song on disk and one in the browser. */
+export async function readPackage(readFile: ReadPackageFile, songId: string): Promise<SongPackage> {
+  const readJson = async (fileName: PackageJsonFileName): Promise<unknown> => {
+    const bytes = await readFile(songId, fileName);
+    if (!bytes) fail(`${fileName} is missing`);
+    try {
+      return JSON.parse(new TextDecoder().decode(bytes));
+    } catch {
+      return fail(`${fileName} cannot be read`);
+    }
   };
-  const [manifest, notes, lyrics, beats, f0] = await Promise.all(
-    ["manifest.json", "notes.json", "lyrics.json", "beats.json", "f0.json"].map(get),
-  );
+  const [manifest, notes, lyrics, beats, f0] = await Promise.all(PACKAGE_JSON_FILE_NAMES.map(readJson));
   return validatePackage({ manifest, notes, lyrics, beats, f0 });
 }
 
-export const stemUrl = (id: string, stem: "instrumental" | "vocals"): string => `/song-files/${id}/${stem}.flac`;
+/** The songs this copy of the app has. An empty list when there are none yet. */
+export async function loadIndex(): Promise<SongIndexEntry[]> {
+  const store = await songStore();
+  return store.listSongs();
+}
 
-/** Saves corrected notes into the package on disk, through the local server. */
-export async function saveNotes(id: string, notes: Note[]): Promise<void> {
-  const response = await fetch(`/api/songs/${id}/notes`, {
-    method: "PUT",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(notes),
-  });
-  if (!response.ok) throw new Error("The notes could not be saved. Is the local server running?");
+export async function loadPackage(songId: string): Promise<SongPackage> {
+  const store = await songStore();
+  return readPackage(store.readFile, songId);
+}
+
+/** One audio track of a song, still encoded. */
+export async function loadStem(songId: string, stem: StemName): Promise<ArrayBuffer> {
+  const store = await songStore();
+  const bytes = await store.readFile(songId, stemFileName(stem));
+  if (!bytes) fail(`${stemFileName(stem)} is missing`);
+  return bytes;
+}
+
+/**
+ * Saves corrected notes into the song, wherever it is kept. Refuses notes the
+ * song could not be opened with, such as none at all.
+ */
+export async function saveNotes(songId: string, notes: Note[]): Promise<void> {
+  const notesProblem = findNotesProblem(notes);
+  if (notesProblem !== null) {
+    throw new Error(`The song would not open again with these notes: ${notesProblem}.`);
+  }
+  const store = await songStore();
+  await store.saveNotes(songId, notes);
 }

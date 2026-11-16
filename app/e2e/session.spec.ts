@@ -21,6 +21,8 @@ test("a whole session runs through its parts and is saved with a backup", async 
   await page.getByRole("button", { name: "Save and finish" }).click();
   await expect(page.getByText("Session saved.")).toBeVisible();
   await expect(page.getByText("A backup was written to disk.")).toBeVisible();
+  // The disk backup is the backup here; downloading one is for the copy without a local server.
+  await expect(page.getByRole("button", { name: "Download a backup" })).toHaveCount(0);
 
   await page.getByRole("link", { name: "Back to today" }).click();
   await expect(page.getByText("1 of 5 days practiced")).toBeVisible();

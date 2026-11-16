@@ -4,6 +4,9 @@ import { DRONE_KEY, PROFILE, seed } from "./seed";
 test("a song can be opened and given a key", async ({ page }) => {
   await seed(page, { profile: [PROFILE] });
   await page.getByRole("link", { name: "Songs" }).click();
+  await expect(page.getByRole("link", { name: /Test drone/ })).toBeVisible();
+  // Songs come from the folder on disk here, so there is nothing to add or remove by hand.
+  await expect(page.getByRole("button", { name: "Add a song" })).toHaveCount(0);
   await page.getByRole("link", { name: /Test drone/ }).click();
   await expect(page.getByRole("heading", { name: "Test drone" })).toBeVisible();
   // The melody is A2, well inside the seeded range, so the best fit leaves it alone.
@@ -11,6 +14,7 @@ test("a song can be opened and given a key", async ({ page }) => {
   await page.getByRole("button", { name: "Use this key" }).first().click();
   await expect(page.getByRole("link", { name: "Practice this song" })).toBeVisible();
   await expect(page.getByText("4 phrases: 4 new")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Remove this song" })).toHaveCount(0);
 });
 
 test("a phrase is practiced and scored, and the progress is kept", async ({ page }) => {

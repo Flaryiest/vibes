@@ -22,6 +22,7 @@ import {
   type Throat,
 } from "../store/db";
 import { AudioGate } from "./AudioGate";
+import { downloadBackup } from "./downloadBackup";
 import { buttonClass, headlineClass, quietButtonClass } from "./lab/styles";
 import { SongPractice } from "./PhrasePractice";
 import { Drill } from "./Practice";
@@ -29,6 +30,7 @@ import { CheckIn } from "./session/CheckIn";
 import { Rest } from "./session/Rest";
 import { WarmUp } from "./session/WarmUp";
 import { TakeBlock } from "./Take";
+import { useHasLocalServer } from "./useHasLocalServer";
 
 /** "?speed=60" runs every part sixty times faster, for the end-to-end test. */
 const speed = Number(new URLSearchParams(location.search).get("speed") ?? 1) || 1;
@@ -62,30 +64,45 @@ function wholeSongAtFullSpeed(song: SongInPlan): boolean {
   return groups.every((phrase) => (song.progress.find((p) => p.group === phrase.group)?.step ?? 1) >= 5);
 }
 
+/** Says where a finished session went. Where backups are downloaded there is no disk backup to speak of. */
+function describeWhereSessionIsStored(backupWritten: boolean, backupsAreDownloaded: boolean): string {
+  if (backupWritten) return "A backup was written to disk.";
+  if (backupsAreDownloaded) return "It is stored in this browser.";
+  return "It is stored in this browser. No backup was written, because the local server is not running.";
+}
+
 function Runner({ engine, loaded }: { engine: AudioEngine; loaded: Loaded & { profile: RangeProfile } }) {
   const { blocks, profile, skill, song } = loaded;
   const [index, setIndex] = useState(0);
-  const [saved, setSaved] = useState(false);
+  const [backupWritten, setBackupWritten] = useState(false);
+  const hasServer = useHasLocalServer();
   const startedAt = useRef(Date.now());
   const next = () => setIndex((i) => i + 1);
 
   async function save(effort: number | null, throat: Throat | null) {
     const minutes = Math.max(1, Math.round(((Date.now() - startedAt.current) / 60000) * speed));
     await addSession({ at: new Date().toISOString(), minutes, effort, throat });
-    setSaved(await backupToDisk());
+    setBackupWritten(await backupToDisk());
     next();
   }
 
   if (index >= blocks.length) {
+    // Without the local server nothing can be written to disk, so a backup is a file the learner downloads.
+    const backupsAreDownloaded = hasServer === false;
     return (
       <div className="pt-[18vh]">
         <p className={headlineClass}>Session saved.</p>
-        <p className="mt-3 max-w-prose text-mist">
-          {saved ? "A backup was written to disk." : "It is stored in this browser. No backup was written, because the local server is not running."}
-        </p>
-        <Link to="/" className={`mt-8 inline-block ${buttonClass}`}>
-          Back to today
-        </Link>
+        <p className="mt-3 max-w-prose text-mist">{describeWhereSessionIsStored(backupWritten, backupsAreDownloaded)}</p>
+        <div className="mt-8 flex flex-wrap items-center gap-5">
+          <Link to="/" className={`inline-block ${buttonClass}`}>
+            Back to today
+          </Link>
+          {backupsAreDownloaded && (
+            <button onClick={() => void downloadBackup()} className={quietButtonClass}>
+              Download a backup
+            </button>
+          )}
+        </div>
       </div>
     );
   }

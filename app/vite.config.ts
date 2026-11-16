@@ -11,7 +11,9 @@ export default defineConfig({
     // The local server (songs, saved notes, backups) runs on 4748 during development.
     proxy: { "/song-files": "http://127.0.0.1:4748", "/api": "http://127.0.0.1:4748" },
   },
-  preview: { host: "localhost", port: 4747, strictPort: true },
+  // A plain static host with no local server behind it, like the copy on the web. Without the empty
+  // `proxy` the preview would pass /api and /song-files on to a development server that happens to be running.
+  preview: { host: "localhost", port: 4747, strictPort: true, proxy: {} },
   worker: { format: "es" },
   test: { environment: "node", include: ["src/**/*.test.ts"] },
 });

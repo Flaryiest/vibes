@@ -5,6 +5,9 @@ import type { PhraseProgress } from "../practice/phraseLadder";
 import type { NoteResult } from "../scoring/notes";
 import type { TakeMetrics } from "../scoring/take";
 import type { KeySetting } from "../song/key";
+import type { PackageFile } from "../song/songStore.types";
+import type { SongIndexEntry } from "../song/types";
+import { hasLocalServer } from "./localServer";
 
 type ProfileRow = RangeProfile & { id: "me"; measuredAt: string };
 type SkillRow = Skill & { id: "foundation" };
@@ -49,6 +52,14 @@ export type PitchCheckRow = { id: number; at: string; pctInTune: number; meanAbs
 export type RangeCheckRow = { id: number; at: string; comfortLow: number; comfortHigh: number; speakingMidi: number };
 type SettingRow = { key: string; value: unknown };
 
+/**
+ * A song kept in this browser. Only the copy of the app without a local server
+ * keeps songs here; with the server, songs are read from the folder on disk.
+ */
+type LibrarySongRow = SongIndexEntry & { addedAt: string };
+/** One file of a song kept in this browser, e.g. name "notes.json" or "vocals.flac". */
+type LibraryFileRow = PackageFile & { songId: string };
+
 export const db = new Dexie("singing-trainer") as Dexie & {
   profile: EntityTable<ProfileRow, "id">;
   skill: EntityTable<SkillRow, "id">;
@@ -61,6 +72,8 @@ export const db = new Dexie("singing-trainer") as Dexie & {
   pitchChecks: EntityTable<PitchCheckRow, "id">;
   rangeChecks: EntityTable<RangeCheckRow, "id">;
   settings: EntityTable<SettingRow, "key">;
+  librarySongs: EntityTable<LibrarySongRow, "id">;
+  libraryFiles: Table<LibraryFileRow, [string, string]>;
 };
 
 db.version(1).stores({ profile: "id", skill: "id", attempts: "++id, at" });
@@ -77,6 +90,8 @@ db.version(2).stores({
   rangeChecks: "++id, at",
   settings: "key",
 });
+// Only the new tables are listed; the others carry over unchanged.
+db.version(3).stores({ librarySongs: "id, addedAt", libraryFiles: "[songId+name], songId" });
 
 export async function loadProfile(): Promise<RangeProfile | null> {
   const row = await db.profile.get("me");
@@ -202,7 +217,55 @@ export async function setSetting(key: string, value: unknown): Promise<void> {
   await db.settings.put({ key, value });
 }
 
-/** Everything except recorded audio, for the backup kept on disk. */
+/** The songs kept in this browser, in the order they were added. */
+export async function librarySongs(): Promise<SongIndexEntry[]> {
+  const rows = await db.librarySongs.orderBy("addedAt").toArray();
+  return rows.map(({ id, title, artist, durationS }) => ({ id, title, artist, durationS }));
+}
+
+/** Whether this browser keeps the song, readable or not. */
+export async function libraryKeepsSong(songId: string): Promise<boolean> {
+  return (await db.librarySongs.get(songId)) !== undefined;
+}
+
+/** Keeps a whole song package in this browser. Fails, changing nothing, if a song with that id is already kept. */
+export async function addLibrarySong(song: SongIndexEntry, files: PackageFile[]): Promise<void> {
+  const addedAt = new Date().toISOString();
+  await db.transaction("rw", db.librarySongs, db.libraryFiles, async () => {
+    await db.librarySongs.add({ ...song, addedAt });
+    await db.libraryFiles.bulkPut(files.map((file) => ({ songId: song.id, ...file })));
+  });
+}
+
+/** One file of a song kept in this browser, or null when there is no such song or file. */
+export async function libraryFile(songId: string, name: string): Promise<ArrayBuffer | null> {
+  return (await db.libraryFiles.get([songId, name]))?.bytes ?? null;
+}
+
+/** Replaces one file of a song kept in this browser. Fails if the song is not kept here. */
+export async function replaceLibraryFile(songId: string, file: PackageFile): Promise<void> {
+  await db.transaction("rw", db.librarySongs, db.libraryFiles, async () => {
+    const song = await db.librarySongs.get(songId);
+    if (!song) throw new Error("That song is not kept in this browser.");
+    await db.libraryFiles.put({ songId, ...file });
+  });
+}
+
+/**
+ * Removes a song kept in this browser, with its files and so any note
+ * corrections made here. Its phrase progress goes in the same step, because a
+ * copy added later may have different notes and so different phrases. The key
+ * and the run-throughs stay.
+ */
+export async function removeLibrarySong(songId: string): Promise<void> {
+  await db.transaction("rw", db.librarySongs, db.libraryFiles, db.phraseProgress, async () => {
+    await db.libraryFiles.where("songId").equals(songId).delete();
+    await db.librarySongs.delete(songId);
+    await db.phraseProgress.where("songId").equals(songId).delete();
+  });
+}
+
+/** Everything the learner has done, for a backup. Recorded audio and the songs themselves are left out. */
 export async function exportAll(): Promise<Record<string, unknown>> {
   const [profile, skill, attempts, songSettings, phraseProgress, takes, sessions, checks, ranges, settings] =
     await Promise.all([
@@ -233,8 +296,12 @@ export async function exportAll(): Promise<Record<string, unknown>> {
   };
 }
 
-/** Sends a backup to the local server, which keeps the last thirty days on disk. Quietly does nothing if it is not running. */
+/**
+ * Sends a backup to the local server, which keeps the last thirty days on disk.
+ * Resolves to false, having written nothing, when there is no local server.
+ */
 export async function backupToDisk(): Promise<boolean> {
+  if (!(await hasLocalServer())) return false;
   try {
     const response = await fetch("/api/backup", {
       method: "POST",
